@@ -1,0 +1,34 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('document_extractions', function (Blueprint $table): void {
+            $table->id();
+            $table->string('type');
+            $table->string('filename');
+            $table->string('identifier');
+            $table->json('extracted_data');
+            $table->string('status');
+            $table->text('error_message')->nullable();
+            $table->string('external_task_id')->nullable();
+            $table->timestamps();
+
+            $table->index(['type', 'filename']);
+            $table->index(['type', 'identifier']);
+            $table->index('external_task_id');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('document_extractions');
+    }
+};
