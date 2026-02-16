@@ -11,9 +11,6 @@ use Tamir\DocumentExtraction\Listeners\ProcessDocumentExtraction;
 use Tamir\DocumentExtraction\Models\DocumentExtraction;
 use Tamir\DocumentExtraction\Providers\KoncileAi\KoncileAiIntegration;
 use Tamir\DocumentExtraction\Services\DocumentExtractionService;
-use Tamir\DocumentExtraction\Tests\TestCase;
-
-uses(TestCase::class);
 
 beforeEach(function () {
     $this->mockProvider = Mockery::mock(DocumentExtractionProvider::class);

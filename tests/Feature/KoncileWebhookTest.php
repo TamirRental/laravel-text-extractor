@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 use Tamir\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
 use Tamir\DocumentExtraction\Models\DocumentExtraction;
-use Tamir\DocumentExtraction\Tests\TestCase;
-
-uses(TestCase::class);
 
 const WEBHOOK_TEST_SECRET = 'test-webhook-secret';
 

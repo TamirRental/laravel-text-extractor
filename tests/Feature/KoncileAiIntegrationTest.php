@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Http;
 use Tamir\DocumentExtraction\Providers\KoncileAi\KoncileAiIntegration;
-use Tamir\DocumentExtraction\Tests\TestCase;
-
-uses(TestCase::class);
 
 beforeEach(function () {
     config([
