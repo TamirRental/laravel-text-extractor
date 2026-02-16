@@ -1,14 +1,14 @@
 {
-    "name": "tamir/document-extraction",
+    "name": "tamir/laravel-text-extractor",
     "description": "A Laravel package for extracting structured data from documents via OCR APIs. Ships with Koncile AI provider.",
     "keywords": [
         "tamir",
         "laravel",
-        "document-extraction",
+        "text-extractor",
         "ocr",
         "koncile"
     ],
-    "homepage": "https://github.com/tamir/laravel-document-extraction",
+    "homepage": "https://github.com/TamirRental/laravel-text-extractor",
     "version": "1.0.0",
     "license": "MIT",
     "authors": [
