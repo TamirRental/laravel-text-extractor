@@ -6,7 +6,6 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 use Tamir\DocumentExtraction\Contracts\DocumentExtractionProvider;
 use Tamir\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
-use Tamir\DocumentExtraction\Enums\DocumentTypeEnum;
 use Tamir\DocumentExtraction\Events\DocumentExtractionRequested;
 use Tamir\DocumentExtraction\Listeners\ProcessDocumentExtraction;
 use Tamir\DocumentExtraction\Models\DocumentExtraction;
@@ -25,12 +24,12 @@ beforeEach(function () {
 // --- extractOrRetrieve ---
 
 it('creates a new pending extraction when none exists', function () {
-    $extraction = $this->service->extractOrRetrieve(DocumentTypeEnum::CarLicense, 'documents/test.pdf');
+    $extraction = $this->service->extractOrRetrieve('car_license', 'documents/test.pdf');
 
     expect($extraction)
         ->toBeInstanceOf(DocumentExtraction::class)
         ->status->toBe(DocumentExtractionStatusEnum::Pending)
-        ->type->toBe(DocumentTypeEnum::CarLicense)
+        ->type->toBe('car_license')
         ->filename->toBe('documents/test.pdf')
         ->identifier->toBe('')
         ->extracted_data->toEqual((object) []);
@@ -38,22 +37,22 @@ it('creates a new pending extraction when none exists', function () {
 
 it('returns existing extraction when one exists', function () {
     $existing = DocumentExtraction::factory()->create([
-        'type' => DocumentTypeEnum::CarLicense,
+        'type' => 'car_license',
         'filename' => 'documents/test.pdf',
     ]);
 
-    $result = $this->service->extractOrRetrieve(DocumentTypeEnum::CarLicense, 'documents/test.pdf');
+    $result = $this->service->extractOrRetrieve('car_license', 'documents/test.pdf');
 
     expect($result->id)->toBe($existing->id);
 });
 
 it('creates new extraction with force flag even when one exists', function () {
     $existing = DocumentExtraction::factory()->create([
-        'type' => DocumentTypeEnum::CarLicense,
+        'type' => 'car_license',
         'filename' => 'documents/test.pdf',
     ]);
 
-    $result = $this->service->extractOrRetrieve(DocumentTypeEnum::CarLicense, 'documents/test.pdf', force: true);
+    $result = $this->service->extractOrRetrieve('car_license', 'documents/test.pdf', force: true);
 
     expect($result->id)->not->toBe($existing->id);
     expect(DocumentExtraction::count())->toBe(2);
@@ -202,7 +201,7 @@ it('returns null when completing extraction with unknown task id', function () {
     expect($result)->toBeNull();
 });
 
-it('resolves empty identifier when license_number field is missing', function () {
+it('resolves empty identifier when identifier field is missing', function () {
     $extraction = DocumentExtraction::factory()->pending()->create([
         'external_task_id' => 'task-789',
     ]);

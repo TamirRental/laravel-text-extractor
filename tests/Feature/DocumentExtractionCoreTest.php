@@ -3,7 +3,6 @@
 declare(strict_types=1);
 
 use Tamir\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
-use Tamir\DocumentExtraction\Enums\DocumentTypeEnum;
 use Tamir\DocumentExtraction\Models\DocumentExtraction;
 use Tamir\DocumentExtraction\Tests\TestCase;
 
@@ -13,7 +12,7 @@ it('creates a document extraction with factory defaults', function () {
     $extraction = DocumentExtraction::factory()->create();
 
     expect($extraction)
-        ->type->toBe(DocumentTypeEnum::CarLicense)
+        ->type->toBe('car_license')
         ->status->toBe(DocumentExtractionStatusEnum::Pending)
         ->identifier->toBe('')
         ->extracted_data->toEqual((object) [])
@@ -77,9 +76,9 @@ it('filters by failed scope', function () {
 });
 
 it('filters by type scope', function () {
-    DocumentExtraction::factory()->create(['type' => DocumentTypeEnum::CarLicense]);
+    DocumentExtraction::factory()->create(['type' => 'car_license']);
 
-    expect(DocumentExtraction::forType(DocumentTypeEnum::CarLicense)->count())->toBe(1);
+    expect(DocumentExtraction::forType('car_license')->count())->toBe(1);
 });
 
 it('filters by file scope', function () {
@@ -89,8 +88,7 @@ it('filters by file scope', function () {
     expect(DocumentExtraction::forFile('test-doc.pdf')->count())->toBe(1);
 });
 
-it('resolves enum labels via translation keys', function () {
-    expect(DocumentTypeEnum::CarLicense->label())->toBe('Car License');
+it('resolves status enum labels via translation keys', function () {
     expect(DocumentExtractionStatusEnum::Pending->label())->toBe('Pending');
     expect(DocumentExtractionStatusEnum::Completed->label())->toBe('Completed');
     expect(DocumentExtractionStatusEnum::Failed->label())->toBe('Failed');
