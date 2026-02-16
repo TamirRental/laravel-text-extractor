@@ -21,10 +21,6 @@ class InstallCommand extends Command
         ]);
 
         $this->call('vendor:publish', [
-            '--tag' => 'document-extraction-types-config',
-        ]);
-
-        $this->call('vendor:publish', [
             '--tag' => 'document-extraction-migrations',
         ]);
 
