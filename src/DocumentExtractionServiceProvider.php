@@ -9,6 +9,7 @@ use Illuminate\Contracts\Foundation\Application;
 use InvalidArgumentException;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
+use Tamir\DocumentExtraction\Console\Commands\InstallCommand;
 use Tamir\DocumentExtraction\Contracts\DocumentExtractionProvider;
 use Tamir\DocumentExtraction\Events\DocumentExtractionRequested;
 use Tamir\DocumentExtraction\Listeners\ProcessDocumentExtraction;
@@ -24,7 +25,8 @@ class DocumentExtractionServiceProvider extends PackageServiceProvider
             ->hasConfigFile(['document-extraction', 'document-extraction-types'])
             ->hasMigration('create_document_extractions_table')
             ->hasTranslations()
-            ->hasRoute('api');
+            ->hasRoute('api')
+            ->hasCommand(InstallCommand::class);
     }
 
     public function packageRegistered(): void
