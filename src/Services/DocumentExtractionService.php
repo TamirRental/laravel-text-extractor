@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Tamir\DocumentExtraction\Contracts\DocumentExtractionProvider;
 use Tamir\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
+use Tamir\DocumentExtraction\Events\DocumentExtractionRequested;
 use Tamir\DocumentExtraction\Models\DocumentExtraction;
 
 class DocumentExtractionService
@@ -18,6 +19,9 @@ class DocumentExtractionService
 
     /**
      * Find an existing extraction or create a new pending one.
+     *
+     * When a new extraction is created, the DocumentExtractionRequested
+     * event is automatically dispatched to trigger async processing.
      */
     public function extractOrRetrieve(string $type, string $filename, bool $force = false): DocumentExtraction
     {
@@ -33,13 +37,17 @@ class DocumentExtractionService
             }
         }
 
-        return DocumentExtraction::create([
+        $extraction = DocumentExtraction::create([
             'type' => $type,
             'filename' => $filename,
             'identifier' => '',
             'extracted_data' => (object) [],
             'status' => DocumentExtractionStatusEnum::Pending,
         ]);
+
+        DocumentExtractionRequested::dispatch($extraction);
+
+        return $extraction;
     }
 
     /**
