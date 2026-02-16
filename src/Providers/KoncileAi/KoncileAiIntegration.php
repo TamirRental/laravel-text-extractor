@@ -9,18 +9,17 @@ use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 use Tamir\DocumentExtraction\Contracts\DocumentExtractionProvider;
 use Tamir\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
-use Tamir\DocumentExtraction\Enums\DocumentTypeEnum;
 
 class KoncileAiIntegration implements DocumentExtractionProvider
 {
     /**
-     * @var array{url: ?string, key: ?string, webhook_secret: ?string, templates: array<string, ?string>, folders: array<string, ?string>}
+     * @var array{url: ?string, key: ?string, webhook_secret: ?string}
      */
     private array $config;
 
     public function __construct()
     {
-        /** @var array{url: ?string, key: ?string, webhook_secret: ?string, templates: array<string, ?string>, folders: array<string, ?string>} $config */
+        /** @var array{url: ?string, key: ?string, webhook_secret: ?string} $config */
         $config = config('document-extraction.providers.koncile_ai');
         $this->config = $config;
 
@@ -39,16 +38,16 @@ class KoncileAiIntegration implements DocumentExtractionProvider
     /**
      * @return array{status: string, data?: array<string, mixed>, message: string}
      */
-    public function extract(string $filePath, DocumentTypeEnum $documentType): array
+    public function extract(string $filePath, string $documentType): array
     {
         $templateId = $this->resolveTemplateId($documentType);
 
         if (!$templateId) {
             Log::error('No template configured for document type', [
-                'document_type' => $documentType->value,
+                'document_type' => $documentType,
             ]);
 
-            return $this->failedResponse("No template configured for document type: {$documentType->value}");
+            return $this->failedResponse("No template configured for document type: {$documentType}");
         }
 
         $folderId = $this->resolveFolderId($documentType);
@@ -112,14 +111,20 @@ class KoncileAiIntegration implements DocumentExtractionProvider
         }
     }
 
-    private function resolveTemplateId(DocumentTypeEnum $documentType): ?string
+    private function resolveTemplateId(string $documentType): ?string
     {
-        return $this->config['templates'][$documentType->value] ?? null;
+        /** @var array<string, array{template_id: ?string, folder_id: ?string, identifier: string}> $types */
+        $types = config('document-extraction-types', []);
+
+        return $types[$documentType]['template_id'] ?? null;
     }
 
-    private function resolveFolderId(DocumentTypeEnum $documentType): ?string
+    private function resolveFolderId(string $documentType): ?string
     {
-        return $this->config['folders'][$documentType->value] ?? null;
+        /** @var array<string, array{template_id: ?string, folder_id: ?string, identifier: string}> $types */
+        $types = config('document-extraction-types', []);
+
+        return $types[$documentType]['folder_id'] ?? null;
     }
 
     /**
