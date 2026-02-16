@@ -23,7 +23,9 @@ beforeEach(function () {
 
 // --- extractOrRetrieve ---
 
-it('creates a new pending extraction when none exists', function () {
+it('creates a new pending extraction and dispatches event', function () {
+    Event::fake([DocumentExtractionRequested::class]);
+
     $extraction = $this->service->extractOrRetrieve('car_license', 'documents/test.pdf');
 
     expect($extraction)
@@ -33,9 +35,15 @@ it('creates a new pending extraction when none exists', function () {
         ->filename->toBe('documents/test.pdf')
         ->identifier->toBe('')
         ->extracted_data->toEqual((object) []);
+
+    Event::assertDispatched(DocumentExtractionRequested::class, function ($event) use ($extraction) {
+        return $event->documentExtraction->id === $extraction->id;
+    });
 });
 
-it('returns existing extraction when one exists', function () {
+it('returns existing extraction without dispatching event', function () {
+    Event::fake([DocumentExtractionRequested::class]);
+
     $existing = DocumentExtraction::factory()->create([
         'type' => 'car_license',
         'filename' => 'documents/test.pdf',
@@ -44,9 +52,13 @@ it('returns existing extraction when one exists', function () {
     $result = $this->service->extractOrRetrieve('car_license', 'documents/test.pdf');
 
     expect($result->id)->toBe($existing->id);
+
+    Event::assertNotDispatched(DocumentExtractionRequested::class);
 });
 
-it('creates new extraction with force flag even when one exists', function () {
+it('creates new extraction with force flag and dispatches event', function () {
+    Event::fake([DocumentExtractionRequested::class]);
+
     $existing = DocumentExtraction::factory()->create([
         'type' => 'car_license',
         'filename' => 'documents/test.pdf',
@@ -56,6 +68,8 @@ it('creates new extraction with force flag even when one exists', function () {
 
     expect($result->id)->not->toBe($existing->id);
     expect(DocumentExtraction::count())->toBe(2);
+
+    Event::assertDispatched(DocumentExtractionRequested::class);
 });
 
 // --- processExtraction ---
@@ -244,18 +258,6 @@ it('returns null when failing extraction with unknown task id', function () {
 });
 
 // --- Event + Listener ---
-
-it('dispatches DocumentExtractionRequested event', function () {
-    Event::fake([DocumentExtractionRequested::class]);
-
-    $extraction = DocumentExtraction::factory()->create();
-
-    DocumentExtractionRequested::dispatch($extraction);
-
-    Event::assertDispatched(DocumentExtractionRequested::class, function ($event) use ($extraction) {
-        return $event->documentExtraction->id === $extraction->id;
-    });
-});
 
 it('listener calls processExtraction on the service', function () {
     Storage::fake();
