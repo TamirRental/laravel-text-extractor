@@ -1,0 +1,172 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Support\Facades\Http;
+use Tamir\DocumentExtraction\Enums\DocumentTypeEnum;
+use Tamir\DocumentExtraction\Providers\KoncileAi\KoncileAiIntegration;
+use Tamir\DocumentExtraction\Tests\TestCase;
+
+uses(TestCase::class);
+
+beforeEach(function () {
+    config([
+        'document-extraction.providers.koncile_ai' => [
+            'url' => 'https://api.koncile.ai',
+            'key' => 'test-api-key',
+            'webhook_secret' => 'test-secret',
+            'templates' => [
+                'car_license' => 'template-car-123',
+            ],
+            'folders' => [
+                'car_license' => 'folder-car-456',
+            ],
+        ],
+    ]);
+
+    $this->integration = new KoncileAiIntegration;
+
+    $this->tempFile = tempnam(sys_get_temp_dir(), 'test_');
+    file_put_contents($this->tempFile, 'fake-pdf-contents');
+});
+
+afterEach(function () {
+    if (isset($this->tempFile) && file_exists($this->tempFile)) {
+        unlink($this->tempFile);
+    }
+});
+
+it('uploads file successfully and returns pending status', function () {
+    Http::fake([
+        'api.koncile.ai/v1/upload_file/*' => Http::response([
+            'task_ids' => ['task-abc-123'],
+        ], 200),
+    ]);
+
+    $result = $this->integration->extract($this->tempFile, DocumentTypeEnum::CarLicense);
+
+    expect($result)
+        ->toHaveKey('status', 'pending')
+        ->toHaveKey('message', 'File uploaded successfully.')
+        ->toHaveKey('data');
+
+    expect($result['data']['task_ids'])->toContain('task-abc-123');
+
+    Http::assertSent(function ($request) {
+        return str_contains($request->url(), 'v1/upload_file')
+            && str_contains($request->url(), 'template_id=template-car-123')
+            && $request->hasHeader('Authorization', 'Bearer test-api-key');
+    });
+});
+
+it('returns failed when file is not accessible', function () {
+    $result = $this->integration->extract('/tmp/nonexistent-file.pdf', DocumentTypeEnum::CarLicense);
+
+    expect($result)
+        ->toHaveKey('status', 'failed')
+        ->toHaveKey('message');
+
+    expect($result['message'])->toContain('File not accessible');
+});
+
+it('returns failed when no template configured for document type', function () {
+    config(['document-extraction.providers.koncile_ai.templates' => []]);
+
+    $integration = new KoncileAiIntegration;
+    $result = $integration->extract($this->tempFile, DocumentTypeEnum::CarLicense);
+
+    expect($result)
+        ->toHaveKey('status', 'failed')
+        ->toHaveKey('message');
+
+    expect($result['message'])->toContain('No template configured');
+});
+
+it('handles authentication error from koncile api', function () {
+    Http::fake([
+        'api.koncile.ai/v1/upload_file/*' => Http::response('Unauthorized', 401),
+    ]);
+
+    $result = $this->integration->extract($this->tempFile, DocumentTypeEnum::CarLicense);
+
+    expect($result)
+        ->toHaveKey('status', 'failed')
+        ->toHaveKey('message');
+
+    expect($result['message'])->toContain('Authentication failed');
+});
+
+it('handles validation error from koncile api', function () {
+    Http::fake([
+        'api.koncile.ai/v1/upload_file/*' => Http::response('Invalid file format', 422),
+    ]);
+
+    $result = $this->integration->extract($this->tempFile, DocumentTypeEnum::CarLicense);
+
+    expect($result)
+        ->toHaveKey('status', 'failed');
+
+    expect($result['message'])->toContain('Validation error');
+});
+
+it('handles server error from koncile api', function () {
+    Http::fake([
+        'api.koncile.ai/v1/upload_file/*' => Http::response('Internal Server Error', 500),
+    ]);
+
+    $result = $this->integration->extract($this->tempFile, DocumentTypeEnum::CarLicense);
+
+    expect($result)
+        ->toHaveKey('status', 'failed');
+
+    expect($result['message'])->toContain('server error');
+});
+
+it('handles network exception', function () {
+    Http::fake([
+        'api.koncile.ai/v1/upload_file/*' => function () {
+            throw new \Illuminate\Http\Client\ConnectionException('Connection refused');
+        },
+    ]);
+
+    $result = $this->integration->extract($this->tempFile, DocumentTypeEnum::CarLicense);
+
+    expect($result)
+        ->toHaveKey('status', 'failed');
+
+    expect($result['message'])->toContain('Network error');
+});
+
+it('sends folder_id as query param when configured for document type', function () {
+    $capturedUrl = null;
+
+    Http::fake(function ($request) use (&$capturedUrl) {
+        $capturedUrl = $request->url();
+
+        return Http::response(['task_ids' => ['task-folder-123']], 200);
+    });
+
+    $result = $this->integration->extract($this->tempFile, DocumentTypeEnum::CarLicense);
+
+    expect($result)->toHaveKey('status', 'pending');
+    expect($capturedUrl)->toContain('folder_id=folder-car-456');
+});
+
+it('does not send folder_id query param when not configured', function () {
+    config(['document-extraction.providers.koncile_ai.folders' => []]);
+
+    $integration = new KoncileAiIntegration;
+
+    $capturedUrl = null;
+
+    Http::fake(function ($request) use (&$capturedUrl) {
+        $capturedUrl = $request->url();
+
+        return Http::response(['task_ids' => ['task-no-folder']], 200);
+    });
+
+    $result = $integration->extract($this->tempFile, DocumentTypeEnum::CarLicense);
+
+    expect($result)->toHaveKey('status', 'pending');
+    expect($capturedUrl)->not->toContain('folder_id');
+});
