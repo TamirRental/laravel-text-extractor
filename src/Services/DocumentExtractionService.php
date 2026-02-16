@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Tamir\DocumentExtraction\Contracts\DocumentExtractionProvider;
 use Tamir\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
-use Tamir\DocumentExtraction\Enums\DocumentTypeEnum;
 use Tamir\DocumentExtraction\Models\DocumentExtraction;
 
 class DocumentExtractionService
@@ -20,7 +19,7 @@ class DocumentExtractionService
     /**
      * Find an existing extraction or create a new pending one.
      */
-    public function extractOrRetrieve(DocumentTypeEnum $type, string $filename, bool $force = false): DocumentExtraction
+    public function extractOrRetrieve(string $type, string $filename, bool $force = false): DocumentExtraction
     {
         if (!$force) {
             $existing = DocumentExtraction::query()
@@ -176,11 +175,16 @@ class DocumentExtractionService
      *
      * @param  array<string, mixed>  $generalFields
      */
-    private function resolveIdentifier(DocumentTypeEnum $type, array $generalFields): string
+    private function resolveIdentifier(string $type, array $generalFields): string
     {
-        return match ($type) {
-            DocumentTypeEnum::CarLicense => $this->extractFieldValue($generalFields, 'license_number'),
-        };
+        /** @var array<string, array{template_id: ?string, folder_id: ?string, identifier: string}> $types */
+        $types = config('document-extraction-types', []);
+
+        if (!isset($types[$type]['identifier'])) {
+            return '';
+        }
+
+        return $this->extractFieldValue($generalFields, $types[$type]['identifier']);
     }
 
     /**
