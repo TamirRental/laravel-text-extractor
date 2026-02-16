@@ -9,7 +9,6 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Tamir\DocumentExtraction\Database\Factories\DocumentExtractionFactory;
 use Tamir\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
-use Tamir\DocumentExtraction\Enums\DocumentTypeEnum;
 
 class DocumentExtraction extends Model
 {
@@ -31,7 +30,6 @@ class DocumentExtraction extends Model
     protected function casts(): array
     {
         return [
-            'type' => DocumentTypeEnum::class,
             'extracted_data' => 'object',
             'status' => DocumentExtractionStatusEnum::class,
         ];
@@ -73,7 +71,7 @@ class DocumentExtraction extends Model
      * @param  Builder<DocumentExtraction>  $query
      * @return Builder<DocumentExtraction>
      */
-    public function scopeForType(Builder $query, DocumentTypeEnum $type): Builder
+    public function scopeForType(Builder $query, string $type): Builder
     {
         return $query->where('type', $type);
     }

@@ -6,7 +6,6 @@ namespace Tamir\DocumentExtraction\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Tamir\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
-use Tamir\DocumentExtraction\Enums\DocumentTypeEnum;
 use Tamir\DocumentExtraction\Models\DocumentExtraction;
 
 /**
@@ -22,7 +21,7 @@ class DocumentExtractionFactory extends Factory
     public function definition(): array
     {
         return [
-            'type' => DocumentTypeEnum::CarLicense,
+            'type' => 'car_license',
             'filename' => fake()->uuid().'.pdf',
             'identifier' => '',
             'extracted_data' => (object) [],
@@ -46,8 +45,10 @@ class DocumentExtractionFactory extends Factory
             'status' => DocumentExtractionStatusEnum::Completed,
             'identifier' => fake()->numerify('##-###-##'),
             'extracted_data' => (object) [
-                'license_number' => fake()->numerify('##-###-##'),
-                'owner_name' => fake()->name(),
+                'general_fields' => [
+                    'license_number' => ['value' => fake()->numerify('##-###-##')],
+                    'owner_name' => ['value' => fake()->name()],
+                ],
             ],
             'external_task_id' => fake()->uuid(),
         ]);
