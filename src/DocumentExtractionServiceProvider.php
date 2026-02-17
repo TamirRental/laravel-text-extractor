@@ -2,19 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Tamir\DocumentExtraction;
+namespace TamirRental\DocumentExtraction;
 
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
 use InvalidArgumentException;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use Tamir\DocumentExtraction\Console\Commands\InstallCommand;
-use Tamir\DocumentExtraction\Contracts\DocumentExtractionProvider;
-use Tamir\DocumentExtraction\Events\DocumentExtractionRequested;
-use Tamir\DocumentExtraction\Listeners\ProcessDocumentExtraction;
-use Tamir\DocumentExtraction\Providers\KoncileAi\KoncileAiIntegration;
-use Tamir\DocumentExtraction\Services\DocumentExtractionService;
+use TamirRental\DocumentExtraction\Console\Commands\InstallCommand;
+use TamirRental\DocumentExtraction\Contracts\DocumentExtractionProvider;
+use TamirRental\DocumentExtraction\Events\DocumentExtractionRequested;
+use TamirRental\DocumentExtraction\Listeners\ProcessDocumentExtraction;
+use TamirRental\DocumentExtraction\Providers\KoncileAi\KoncileAiIntegration;
+use TamirRental\DocumentExtraction\Services\DocumentExtractionService;
 
 class DocumentExtractionServiceProvider extends PackageServiceProvider
 {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tamir\DocumentExtraction\Console\Commands;
+namespace TamirRental\DocumentExtraction\Console\Commands;
 
 use Illuminate\Console\Command;
 

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use Tamir\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
-use Tamir\DocumentExtraction\Models\DocumentExtraction;
+use TamirRental\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
+use TamirRental\DocumentExtraction\Models\DocumentExtraction;
 
 it('creates a document extraction with factory defaults', function () {
     $extraction = DocumentExtraction::factory()->create();

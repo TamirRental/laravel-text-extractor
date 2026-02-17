@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Tamir\DocumentExtraction\Tests;
+namespace TamirRental\DocumentExtraction\Tests;
 
 use Illuminate\Foundation\Application;
 use Orchestra\Testbench\TestCase as Orchestra;
-use Tamir\DocumentExtraction\DocumentExtractionServiceProvider;
+use TamirRental\DocumentExtraction\DocumentExtractionServiceProvider;
 
 class TestCase extends Orchestra
 {

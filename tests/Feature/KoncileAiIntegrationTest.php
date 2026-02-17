@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\Http;
-use Tamir\DocumentExtraction\Providers\KoncileAi\KoncileAiIntegration;
+use TamirRental\DocumentExtraction\Providers\KoncileAi\KoncileAiIntegration;
 
 beforeEach(function () {
     config([

@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
-use Tamir\DocumentExtraction\Contracts\DocumentExtractionProvider;
-use Tamir\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
-use Tamir\DocumentExtraction\Events\DocumentExtractionRequested;
-use Tamir\DocumentExtraction\Listeners\ProcessDocumentExtraction;
-use Tamir\DocumentExtraction\Models\DocumentExtraction;
-use Tamir\DocumentExtraction\Providers\KoncileAi\KoncileAiIntegration;
-use Tamir\DocumentExtraction\Services\DocumentExtractionService;
+use TamirRental\DocumentExtraction\Contracts\DocumentExtractionProvider;
+use TamirRental\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
+use TamirRental\DocumentExtraction\Events\DocumentExtractionRequested;
+use TamirRental\DocumentExtraction\Listeners\ProcessDocumentExtraction;
+use TamirRental\DocumentExtraction\Models\DocumentExtraction;
+use TamirRental\DocumentExtraction\Providers\KoncileAi\KoncileAiIntegration;
+use TamirRental\DocumentExtraction\Services\DocumentExtractionService;
 
 beforeEach(function () {
     $this->mockProvider = Mockery::mock(DocumentExtractionProvider::class);

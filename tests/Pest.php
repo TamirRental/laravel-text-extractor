@@ -1,5 +1,5 @@
 <?php
 
-use Tamir\DocumentExtraction\Tests\TestCase;
+use TamirRental\DocumentExtraction\Tests\TestCase;
 
 uses(TestCase::class)->in('Feature');
