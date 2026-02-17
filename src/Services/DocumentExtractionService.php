@@ -10,6 +10,7 @@ use TamirRental\DocumentExtraction\Contracts\DocumentExtractionProvider;
 use TamirRental\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
 use TamirRental\DocumentExtraction\Events\DocumentExtractionRequested;
 use TamirRental\DocumentExtraction\Models\DocumentExtraction;
+use TamirRental\DocumentExtraction\PendingExtraction;
 
 class DocumentExtractionService
 {
@@ -18,14 +19,26 @@ class DocumentExtractionService
     ) {}
 
     /**
+     * Begin a fluent extraction request.
+     *
+     * Returns a PendingExtraction that can be configured with
+     * metadata and force options before calling submit().
+     */
+    public function extract(string $type, string $filename): PendingExtraction
+    {
+        return new PendingExtraction($this, $type, $filename);
+    }
+
+    /**
      * Find an existing extraction or create a new pending one.
      *
-     * When a new extraction is created, the DocumentExtractionRequested
-     * event is automatically dispatched to trigger async processing.
+     * Called internally by PendingExtraction::submit().
      *
-     * @param  array<string, mixed>  $metadata  Provider-specific data (e.g. template_id, folder_id, identifier_field)
+     * @param  array<string, mixed>  $metadata
+     *
+     * @internal
      */
-    public function extractOrRetrieve(string $type, string $filename, array $metadata = [], bool $force = false): DocumentExtraction
+    public function execute(string $type, string $filename, array $metadata = [], bool $force = false): DocumentExtraction
     {
         if (! $force) {
             $existing = DocumentExtraction::query()
@@ -54,7 +67,7 @@ class DocumentExtractionService
     }
 
     /**
-     * Download the file from S3, upload to provider, and save the external task ID.
+     * Download the file from storage, upload to provider, and save the external ID.
      */
     public function processExtraction(DocumentExtraction $extraction): void
     {
@@ -66,7 +79,7 @@ class DocumentExtractionService
             $contents = Storage::get($extraction->filename);
 
             if ($contents === null) {
-                $this->failExtraction(
+                $this->fail(
                     $extraction,
                     "File not found in storage: {$extraction->filename}"
                 );
@@ -78,17 +91,17 @@ class DocumentExtractionService
 
             $result = $this->provider->extract($tempPath, $extraction->type, $extraction->metadata ?? []);
 
-            if ($result['status'] === DocumentExtractionStatusEnum::Pending->value && ! empty($result['data']['task_ids'])) {
+            if ($result['status'] === DocumentExtractionStatusEnum::Pending->value && ! empty($result['external_id'])) {
                 $extraction->update([
-                    'external_task_id' => $result['data']['task_ids'][0],
+                    'external_task_id' => $result['external_id'],
                 ]);
 
                 Log::info('Document extraction submitted', [
                     'extraction_id' => $extraction->id,
-                    'external_task_id' => $result['data']['task_ids'][0],
+                    'external_task_id' => $result['external_id'],
                 ]);
             } else {
-                $this->failExtraction($extraction, $result['message'] ?? 'Unexpected provider response.');
+                $this->fail($extraction, $result['message'] ?? 'Unexpected provider response.');
             }
         } catch (\Throwable $e) {
             Log::error('Document extraction failed', [
@@ -96,7 +109,7 @@ class DocumentExtractionService
                 'error' => $e->getMessage(),
             ]);
 
-            $this->failExtraction($extraction, $e->getMessage());
+            $this->fail($extraction, $e->getMessage());
         } finally {
             if ($tempPath && file_exists($tempPath)) {
                 unlink($tempPath);
@@ -106,12 +119,8 @@ class DocumentExtractionService
 
     /**
      * Mark an extraction as completed with the extracted data.
-     *
-     * @param  array<string, mixed>  $generalFields
-     * @param  array<string, mixed>  $lineFields
-     * @param  array<string, mixed>  $fullPayload
      */
-    public function completeExtraction(string $taskId, array $generalFields, array $lineFields, array $fullPayload = []): ?DocumentExtraction
+    public function complete(string $taskId, object $extractedData, string $identifier = ''): ?DocumentExtraction
     {
         $extraction = $this->findByTaskId($taskId);
 
@@ -121,14 +130,9 @@ class DocumentExtractionService
             return null;
         }
 
-        $extractedData = (object) ($fullPayload ?: [
-            'general_fields' => $generalFields,
-            'line_fields' => $lineFields,
-        ]);
-
         $extraction->update([
             'status' => DocumentExtractionStatusEnum::Completed,
-            'identifier' => $this->resolveIdentifier($extraction, $generalFields),
+            'identifier' => $identifier,
             'extracted_data' => $extractedData,
         ]);
 
@@ -143,7 +147,7 @@ class DocumentExtractionService
     /**
      * Mark an extraction as failed.
      */
-    public function failExtraction(DocumentExtraction|string $extractionOrTaskId, string $message): ?DocumentExtraction
+    public function fail(DocumentExtraction|string $extractionOrTaskId, string $message): ?DocumentExtraction
     {
         $extraction = $extractionOrTaskId instanceof DocumentExtraction
             ? $extractionOrTaskId
@@ -179,35 +183,5 @@ class DocumentExtractionService
         return DocumentExtraction::query()
             ->where('external_task_id', $taskId)
             ->first();
-    }
-
-    /**
-     * Resolve the identifier from extracted data using metadata's identifier_field.
-     *
-     * @param  array<string, mixed>  $generalFields
-     */
-    private function resolveIdentifier(DocumentExtraction $extraction, array $generalFields): string
-    {
-        $identifierField = $extraction->metadata['identifier_field'] ?? null;
-
-        if (! $identifierField) {
-            return '';
-        }
-
-        return $this->extractFieldValue($generalFields, $identifierField);
-    }
-
-    /**
-     * Extract a field value from general fields structure.
-     *
-     * @param  array<string, mixed>  $fields
-     */
-    private function extractFieldValue(array $fields, string $fieldName): string
-    {
-        if (isset($fields[$fieldName]['value'])) {
-            return (string) $fields[$fieldName]['value'];
-        }
-
-        return '';
     }
 }
