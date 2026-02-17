@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 use TamirRental\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
 use TamirRental\DocumentExtraction\Models\DocumentExtraction;
 

@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace TamirRental\DocumentExtraction\Facades;
 
 use Illuminate\Support\Facades\Facade;
