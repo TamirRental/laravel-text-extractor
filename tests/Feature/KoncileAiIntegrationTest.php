@@ -12,19 +12,18 @@ beforeEach(function () {
             'key' => 'test-api-key',
             'webhook_secret' => 'test-secret',
         ],
-        'document-extraction-types' => [
-            'car_license' => [
-                'template_id' => 'template-car-123',
-                'folder_id' => 'folder-car-456',
-                'identifier' => 'license_number',
-            ],
-        ],
     ]);
 
     $this->integration = new KoncileAiIntegration;
 
     $this->tempFile = tempnam(sys_get_temp_dir(), 'test_');
     file_put_contents($this->tempFile, 'fake-pdf-contents');
+
+    $this->metadata = [
+        'template_id' => 'template-car-123',
+        'folder_id' => 'folder-car-456',
+        'identifier_field' => 'license_number',
+    ];
 });
 
 afterEach(function () {
@@ -40,7 +39,7 @@ it('uploads file successfully and returns pending status', function () {
         ], 200),
     ]);
 
-    $result = $this->integration->extract($this->tempFile, 'car_license');
+    $result = $this->integration->extract($this->tempFile, 'car_license', $this->metadata);
 
     expect($result)
         ->toHaveKey('status', 'pending')
@@ -57,7 +56,7 @@ it('uploads file successfully and returns pending status', function () {
 });
 
 it('returns failed when file is not accessible', function () {
-    $result = $this->integration->extract('/tmp/nonexistent-file.pdf', 'car_license');
+    $result = $this->integration->extract('/tmp/nonexistent-file.pdf', 'car_license', $this->metadata);
 
     expect($result)
         ->toHaveKey('status', 'failed')
@@ -66,17 +65,14 @@ it('returns failed when file is not accessible', function () {
     expect($result['message'])->toContain('File not accessible');
 });
 
-it('returns failed when no template configured for document type', function () {
-    config(['document-extraction-types' => []]);
-
-    $integration = new KoncileAiIntegration;
-    $result = $integration->extract($this->tempFile, 'car_license');
+it('returns failed when no template_id in metadata', function () {
+    $result = $this->integration->extract($this->tempFile, 'car_license', []);
 
     expect($result)
         ->toHaveKey('status', 'failed')
         ->toHaveKey('message');
 
-    expect($result['message'])->toContain('No template configured');
+    expect($result['message'])->toContain('No template_id provided in metadata');
 });
 
 it('handles authentication error from koncile api', function () {
@@ -84,7 +80,7 @@ it('handles authentication error from koncile api', function () {
         'api.koncile.ai/v1/upload_file/*' => Http::response('Unauthorized', 401),
     ]);
 
-    $result = $this->integration->extract($this->tempFile, 'car_license');
+    $result = $this->integration->extract($this->tempFile, 'car_license', $this->metadata);
 
     expect($result)
         ->toHaveKey('status', 'failed')
@@ -98,7 +94,7 @@ it('handles validation error from koncile api', function () {
         'api.koncile.ai/v1/upload_file/*' => Http::response('Invalid file format', 422),
     ]);
 
-    $result = $this->integration->extract($this->tempFile, 'car_license');
+    $result = $this->integration->extract($this->tempFile, 'car_license', $this->metadata);
 
     expect($result)
         ->toHaveKey('status', 'failed');
@@ -111,7 +107,7 @@ it('handles server error from koncile api', function () {
         'api.koncile.ai/v1/upload_file/*' => Http::response('Internal Server Error', 500),
     ]);
 
-    $result = $this->integration->extract($this->tempFile, 'car_license');
+    $result = $this->integration->extract($this->tempFile, 'car_license', $this->metadata);
 
     expect($result)
         ->toHaveKey('status', 'failed');
@@ -126,7 +122,7 @@ it('handles network exception', function () {
         },
     ]);
 
-    $result = $this->integration->extract($this->tempFile, 'car_license');
+    $result = $this->integration->extract($this->tempFile, 'car_license', $this->metadata);
 
     expect($result)
         ->toHaveKey('status', 'failed');
@@ -134,7 +130,7 @@ it('handles network exception', function () {
     expect($result['message'])->toContain('Network error');
 });
 
-it('sends folder_id as query param when configured for document type', function () {
+it('sends folder_id as query param when provided in metadata', function () {
     $capturedUrl = null;
 
     Http::fake(function ($request) use (&$capturedUrl) {
@@ -143,17 +139,13 @@ it('sends folder_id as query param when configured for document type', function 
         return Http::response(['task_ids' => ['task-folder-123']], 200);
     });
 
-    $result = $this->integration->extract($this->tempFile, 'car_license');
+    $result = $this->integration->extract($this->tempFile, 'car_license', $this->metadata);
 
     expect($result)->toHaveKey('status', 'pending');
     expect($capturedUrl)->toContain('folder_id=folder-car-456');
 });
 
-it('does not send folder_id query param when not configured', function () {
-    config(['document-extraction-types.car_license.folder_id' => null]);
-
-    $integration = new KoncileAiIntegration;
-
+it('does not send folder_id query param when not in metadata', function () {
     $capturedUrl = null;
 
     Http::fake(function ($request) use (&$capturedUrl) {
@@ -162,7 +154,11 @@ it('does not send folder_id query param when not configured', function () {
         return Http::response(['task_ids' => ['task-no-folder']], 200);
     });
 
-    $result = $integration->extract($this->tempFile, 'car_license');
+    $metadata = [
+        'template_id' => 'template-car-123',
+    ];
+
+    $result = $this->integration->extract($this->tempFile, 'car_license', $metadata);
 
     expect($result)->toHaveKey('status', 'pending');
     expect($capturedUrl)->not->toContain('folder_id');

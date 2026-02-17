@@ -29,14 +29,6 @@ class TestCase extends Orchestra
 
         $app['config']->set('document-extraction.providers.koncile_ai.url', 'https://api.koncile.ai');
         $app['config']->set('document-extraction.providers.koncile_ai.key', 'test-api-key');
-
-        $app['config']->set('document-extraction-types', [
-            'car_license' => [
-                'template_id' => 'template-car-123',
-                'folder_id' => 'folder-car-456',
-                'identifier' => 'license_number',
-            ],
-        ]);
     }
 
     protected function defineDatabaseMigrations(): void

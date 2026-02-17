@@ -34,6 +34,7 @@ function signedHeaders(array $payload, string $secret = WEBHOOK_TEST_SECRET): ar
 it('processes a successful webhook with DONE status', function () {
     $extraction = DocumentExtraction::factory()->pending()->create([
         'external_task_id' => 'task-webhook-1',
+        'metadata' => ['identifier_field' => 'license_number'],
     ]);
 
     $payload = [
@@ -141,6 +142,7 @@ it('accepts webhook with valid signature', function () {
 
     $extraction = DocumentExtraction::factory()->pending()->create([
         'external_task_id' => 'task-webhook-6',
+        'metadata' => ['identifier_field' => 'license_number'],
     ]);
 
     $payload = [

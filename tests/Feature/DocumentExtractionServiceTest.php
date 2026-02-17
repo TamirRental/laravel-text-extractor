@@ -61,7 +61,7 @@ it('creates new extraction with force flag and dispatches event', function () {
         'filename' => 'documents/test.pdf',
     ]);
 
-    $result = $this->service->extractOrRetrieve('car_license', 'documents/test.pdf', force: true);
+    $result = $this->service->extractOrRetrieve('car_license', 'documents/test.pdf', [], true);
 
     expect($result->id)->not->toBe($existing->id);
     expect(DocumentExtraction::count())->toBe(2);
@@ -183,6 +183,7 @@ it('overwrites external_task_id when re-processing an extraction', function () {
 it('completes extraction with extracted data', function () {
     $extraction = DocumentExtraction::factory()->pending()->create([
         'external_task_id' => 'task-456',
+        'metadata' => ['identifier_field' => 'license_number'],
     ]);
 
     $generalFields = [
