@@ -2,7 +2,17 @@ name: Run Tests
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to checkout for tests'
+        type: string
+        required: false
   workflow_call:
+    inputs:
+      tag:
+        description: 'Tag to checkout for tests'
+        type: string
+        required: false
 
 jobs:
   laravel-tests:
@@ -14,12 +24,15 @@ jobs:
         with:
           php-version: '8.4'
 
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout code at ${{ inputs.tag }}
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ inputs.tag || '' }}
 
       - name: Install Dependencies
         run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
 
       - name: Execute tests via Pest
         if: hashFiles('tests/**') != ''
-        run: vendor/bin/pest
+        run: vendor/bin/pest --parallel
