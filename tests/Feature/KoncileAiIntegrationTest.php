@@ -1,6 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
+use TamirRental\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
+use TamirRental\DocumentExtraction\Models\DocumentExtraction;
 use TamirRental\DocumentExtraction\Providers\KoncileAi\KoncileAiIntegration;
 
 beforeEach(function () {
@@ -12,10 +15,9 @@ beforeEach(function () {
         ],
     ]);
 
-    $this->integration = new KoncileAiIntegration;
+    Storage::fake();
 
-    $this->tempFile = tempnam(sys_get_temp_dir(), 'test_');
-    file_put_contents($this->tempFile, 'fake-pdf-contents');
+    $this->integration = new KoncileAiIntegration;
 
     $this->metadata = [
         'template_id' => 'template-car-123',
@@ -24,25 +26,25 @@ beforeEach(function () {
     ];
 });
 
-afterEach(function () {
-    if (isset($this->tempFile) && file_exists($this->tempFile)) {
-        unlink($this->tempFile);
-    }
-});
+it('processes extraction successfully and stores external task id', function () {
+    Storage::put('documents/test.pdf', 'fake-pdf-contents');
 
-it('uploads file successfully and returns pending status', function () {
     Http::fake([
         'api.koncile.ai/v1/upload_file/*' => Http::response([
             'task_ids' => ['task-abc-123'],
         ], 200),
     ]);
 
-    $result = $this->integration->extract($this->tempFile, 'car_license', $this->metadata);
+    $extraction = DocumentExtraction::factory()->create([
+        'filename' => 'documents/test.pdf',
+        'type' => 'car_license',
+        'metadata' => $this->metadata,
+    ]);
 
-    expect($result)
-        ->toHaveKey('status', 'pending')
-        ->toHaveKey('message', 'File uploaded successfully.')
-        ->toHaveKey('external_id', 'task-abc-123');
+    $this->integration->process($extraction);
+
+    $extraction->refresh();
+    expect($extraction->external_task_id)->toBe('task-abc-123');
 
     Http::assertSent(function ($request) {
         return str_contains($request->url(), 'v1/upload_file')
@@ -51,82 +53,122 @@ it('uploads file successfully and returns pending status', function () {
     });
 });
 
-it('returns failed when file is not accessible', function () {
-    $result = $this->integration->extract('/tmp/nonexistent-file.pdf', 'car_license', $this->metadata);
+it('fails extraction when file not found in storage', function () {
+    $extraction = DocumentExtraction::factory()->create([
+        'filename' => 'documents/missing.pdf',
+        'metadata' => $this->metadata,
+    ]);
 
-    expect($result)
-        ->toHaveKey('status', 'failed')
-        ->toHaveKey('message');
+    $this->integration->process($extraction);
 
-    expect($result['message'])->toContain('File not accessible');
+    $extraction->refresh();
+    expect($extraction)
+        ->status->toBe(DocumentExtractionStatusEnum::Failed)
+        ->error_message->toContain('File not found in storage');
 });
 
-it('returns failed when no template_id in metadata', function () {
-    $result = $this->integration->extract($this->tempFile, 'car_license', []);
+it('fails extraction when no template_id in metadata', function () {
+    Storage::put('documents/test.pdf', 'fake-pdf-contents');
 
-    expect($result)
-        ->toHaveKey('status', 'failed')
-        ->toHaveKey('message');
+    $extraction = DocumentExtraction::factory()->create([
+        'filename' => 'documents/test.pdf',
+        'type' => 'car_license',
+        'metadata' => [],
+    ]);
 
-    expect($result['message'])->toContain('No template_id provided in metadata');
+    $this->integration->process($extraction);
+
+    $extraction->refresh();
+    expect($extraction)
+        ->status->toBe(DocumentExtractionStatusEnum::Failed)
+        ->error_message->toContain('No template_id provided in metadata');
 });
 
-it('handles authentication error from koncile api', function () {
+it('fails extraction on authentication error from koncile api', function () {
+    Storage::put('documents/test.pdf', 'fake-pdf-contents');
+
     Http::fake([
         'api.koncile.ai/v1/upload_file/*' => Http::response('Unauthorized', 401),
     ]);
 
-    $result = $this->integration->extract($this->tempFile, 'car_license', $this->metadata);
+    $extraction = DocumentExtraction::factory()->create([
+        'filename' => 'documents/test.pdf',
+        'metadata' => $this->metadata,
+    ]);
 
-    expect($result)
-        ->toHaveKey('status', 'failed')
-        ->toHaveKey('message');
+    $this->integration->process($extraction);
 
-    expect($result['message'])->toContain('Authentication failed');
+    $extraction->refresh();
+    expect($extraction)
+        ->status->toBe(DocumentExtractionStatusEnum::Failed)
+        ->error_message->toContain('Authentication failed');
 });
 
-it('handles validation error from koncile api', function () {
+it('fails extraction on validation error from koncile api', function () {
+    Storage::put('documents/test.pdf', 'fake-pdf-contents');
+
     Http::fake([
         'api.koncile.ai/v1/upload_file/*' => Http::response('Invalid file format', 422),
     ]);
 
-    $result = $this->integration->extract($this->tempFile, 'car_license', $this->metadata);
+    $extraction = DocumentExtraction::factory()->create([
+        'filename' => 'documents/test.pdf',
+        'metadata' => $this->metadata,
+    ]);
 
-    expect($result)
-        ->toHaveKey('status', 'failed');
+    $this->integration->process($extraction);
 
-    expect($result['message'])->toContain('Validation error');
+    $extraction->refresh();
+    expect($extraction)
+        ->status->toBe(DocumentExtractionStatusEnum::Failed)
+        ->error_message->toContain('Validation error');
 });
 
-it('handles server error from koncile api', function () {
+it('fails extraction on server error from koncile api', function () {
+    Storage::put('documents/test.pdf', 'fake-pdf-contents');
+
     Http::fake([
         'api.koncile.ai/v1/upload_file/*' => Http::response('Internal Server Error', 500),
     ]);
 
-    $result = $this->integration->extract($this->tempFile, 'car_license', $this->metadata);
+    $extraction = DocumentExtraction::factory()->create([
+        'filename' => 'documents/test.pdf',
+        'metadata' => $this->metadata,
+    ]);
 
-    expect($result)
-        ->toHaveKey('status', 'failed');
+    $this->integration->process($extraction);
 
-    expect($result['message'])->toContain('server error');
+    $extraction->refresh();
+    expect($extraction)
+        ->status->toBe(DocumentExtractionStatusEnum::Failed)
+        ->error_message->toContain('server error');
 });
 
-it('handles network exception', function () {
+it('fails extraction on network exception', function () {
+    Storage::put('documents/test.pdf', 'fake-pdf-contents');
+
     Http::fake([
         'api.koncile.ai/v1/upload_file/*' => function () {
             throw new \Illuminate\Http\Client\ConnectionException('Connection refused');
         },
     ]);
 
-    $result = $this->integration->extract($this->tempFile, 'car_license', $this->metadata);
+    $extraction = DocumentExtraction::factory()->create([
+        'filename' => 'documents/test.pdf',
+        'metadata' => $this->metadata,
+    ]);
 
-    expect($result)
-        ->toHaveKey('status', 'failed');
+    $this->integration->process($extraction);
 
-    expect($result['message'])->toContain('Network error');
+    $extraction->refresh();
+    expect($extraction)
+        ->status->toBe(DocumentExtractionStatusEnum::Failed)
+        ->error_message->toContain('Connection refused');
 });
 
 it('sends folder_id as query param when provided in metadata', function () {
+    Storage::put('documents/test.pdf', 'fake-pdf-contents');
+
     $capturedUrl = null;
 
     Http::fake(function ($request) use (&$capturedUrl) {
@@ -135,13 +177,19 @@ it('sends folder_id as query param when provided in metadata', function () {
         return Http::response(['task_ids' => ['task-folder-123']], 200);
     });
 
-    $result = $this->integration->extract($this->tempFile, 'car_license', $this->metadata);
+    $extraction = DocumentExtraction::factory()->create([
+        'filename' => 'documents/test.pdf',
+        'metadata' => $this->metadata,
+    ]);
 
-    expect($result)->toHaveKey('status', 'pending');
+    $this->integration->process($extraction);
+
     expect($capturedUrl)->toContain('folder_id=folder-car-456');
 });
 
 it('does not send folder_id query param when not in metadata', function () {
+    Storage::put('documents/test.pdf', 'fake-pdf-contents');
+
     $capturedUrl = null;
 
     Http::fake(function ($request) use (&$capturedUrl) {
@@ -150,12 +198,12 @@ it('does not send folder_id query param when not in metadata', function () {
         return Http::response(['task_ids' => ['task-no-folder']], 200);
     });
 
-    $metadata = [
-        'template_id' => 'template-car-123',
-    ];
+    $extraction = DocumentExtraction::factory()->create([
+        'filename' => 'documents/test.pdf',
+        'metadata' => ['template_id' => 'template-car-123'],
+    ]);
 
-    $result = $this->integration->extract($this->tempFile, 'car_license', $metadata);
+    $this->integration->process($extraction);
 
-    expect($result)->toHaveKey('status', 'pending');
     expect($capturedUrl)->not->toContain('folder_id');
 });

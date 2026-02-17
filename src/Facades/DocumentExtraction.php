@@ -7,7 +7,6 @@ use TamirRental\DocumentExtraction\Services\DocumentExtractionService;
 
 /**
  * @method static \TamirRental\DocumentExtraction\PendingExtraction extract(string $type, string $filename)
- * @method static void processExtraction(\TamirRental\DocumentExtraction\Models\DocumentExtraction $extraction)
  * @method static \TamirRental\DocumentExtraction\Models\DocumentExtraction|null complete(string $taskId, object $extractedData, string $identifier = '')
  * @method static \TamirRental\DocumentExtraction\Models\DocumentExtraction|null fail(\TamirRental\DocumentExtraction\Models\DocumentExtraction|string $extractionOrTaskId, string $message)
  *

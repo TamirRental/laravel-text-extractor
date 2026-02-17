@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Storage;
 use TamirRental\DocumentExtraction\Contracts\DocumentExtractionProvider;
 use TamirRental\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
 use TamirRental\DocumentExtraction\Events\DocumentExtractionRequested;
@@ -125,111 +124,15 @@ it('does not force when condition is false', function () {
 
 // --- processExtraction ---
 
-it('downloads file from storage and uploads to provider', function () {
-    Storage::fake();
-    Storage::put('documents/test.pdf', 'file-contents');
-
-    $extraction = DocumentExtraction::factory()->create([
-        'filename' => 'documents/test.pdf',
-    ]);
+it('delegates extraction processing to the provider', function () {
+    $extraction = DocumentExtraction::factory()->create();
 
     $this->mockProvider
-        ->shouldReceive('extract')
+        ->shouldReceive('process')
         ->once()
-        ->andReturn([
-            'status' => 'pending',
-            'external_id' => 'task-123',
-            'message' => 'File uploaded successfully.',
-        ]);
+        ->with(Mockery::on(fn ($arg) => $arg->id === $extraction->id));
 
     $this->service->processExtraction($extraction);
-
-    $extraction->refresh();
-    expect($extraction->external_task_id)->toBe('task-123');
-});
-
-it('marks extraction as failed when file not found in storage', function () {
-    Storage::fake();
-
-    $extraction = DocumentExtraction::factory()->create([
-        'filename' => 'documents/missing.pdf',
-    ]);
-
-    $this->service->processExtraction($extraction);
-
-    $extraction->refresh();
-    expect($extraction)
-        ->status->toBe(DocumentExtractionStatusEnum::Failed)
-        ->error_message->toContain('File not found in storage');
-});
-
-it('marks extraction as failed when provider returns non-pending status', function () {
-    Storage::fake();
-    Storage::put('documents/test.pdf', 'file-contents');
-
-    $extraction = DocumentExtraction::factory()->create([
-        'filename' => 'documents/test.pdf',
-    ]);
-
-    $this->mockProvider
-        ->shouldReceive('extract')
-        ->once()
-        ->andReturn([
-            'status' => 'failed',
-            'message' => 'Template not found.',
-        ]);
-
-    $this->service->processExtraction($extraction);
-
-    $extraction->refresh();
-    expect($extraction)
-        ->status->toBe(DocumentExtractionStatusEnum::Failed)
-        ->error_message->toBe('Template not found.');
-});
-
-it('marks extraction as failed when provider throws exception', function () {
-    Storage::fake();
-    Storage::put('documents/test.pdf', 'file-contents');
-
-    $extraction = DocumentExtraction::factory()->create([
-        'filename' => 'documents/test.pdf',
-    ]);
-
-    $this->mockProvider
-        ->shouldReceive('extract')
-        ->once()
-        ->andThrow(new RuntimeException('Connection timeout'));
-
-    $this->service->processExtraction($extraction);
-
-    $extraction->refresh();
-    expect($extraction)
-        ->status->toBe(DocumentExtractionStatusEnum::Failed)
-        ->error_message->toBe('Connection timeout');
-});
-
-it('overwrites external_task_id when re-processing an extraction', function () {
-    Storage::fake();
-    Storage::put('documents/test.pdf', 'file-contents');
-
-    $extraction = DocumentExtraction::factory()->create([
-        'filename' => 'documents/test.pdf',
-        'external_task_id' => 'old-task-id',
-    ]);
-
-    $this->mockProvider
-        ->shouldReceive('extract')
-        ->once()
-        ->andReturn([
-            'status' => 'pending',
-            'external_id' => 'new-task-id',
-            'message' => 'File uploaded successfully.',
-        ]);
-
-    $this->service->processExtraction($extraction);
-
-    $extraction->refresh();
-    expect($extraction->external_task_id)->toBe('new-task-id');
 });
 
 // --- complete ---
@@ -307,27 +210,15 @@ it('returns null when failing extraction with unknown task id', function () {
 // --- Event + Listener ---
 
 it('listener calls processExtraction on the service', function () {
-    Storage::fake();
-    Storage::put('documents/test.pdf', 'file-contents');
-
-    $extraction = DocumentExtraction::factory()->create([
-        'filename' => 'documents/test.pdf',
-    ]);
+    $extraction = DocumentExtraction::factory()->create();
 
     $this->mockProvider
-        ->shouldReceive('extract')
+        ->shouldReceive('process')
         ->once()
-        ->andReturn([
-            'status' => 'pending',
-            'external_id' => 'task-listener',
-            'message' => 'Uploaded.',
-        ]);
+        ->with(Mockery::on(fn ($arg) => $arg->id === $extraction->id));
 
     $listener = $this->app->make(ProcessDocumentExtraction::class);
     $listener->handle(new DocumentExtractionRequested($extraction));
-
-    $extraction->refresh();
-    expect($extraction->external_task_id)->toBe('task-listener');
 });
 
 // --- Service Provider ---
