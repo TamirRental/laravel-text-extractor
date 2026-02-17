@@ -8,6 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Log;
+use TamirRental\DocumentExtraction\Models\DocumentExtraction;
 use TamirRental\DocumentExtraction\Services\DocumentExtractionService;
 
 class KoncileAiWebhookController extends Controller
@@ -36,13 +37,8 @@ class KoncileAiWebhookController extends Controller
         ]);
 
         match ($status) {
-            'DONE' => $service->completeExtraction(
-                $taskId,
-                $payload['General_fields'] ?? [],
-                $payload['Line_fields'] ?? [],
-                $payload,
-            ),
-            'FAILED' => $service->failExtraction(
+            'DONE' => $this->handleCompleted($service, $taskId, $payload),
+            'FAILED' => $service->fail(
                 $taskId,
                 $payload['error_message'] ?? 'Extraction failed on provider side.',
             ),
@@ -53,6 +49,49 @@ class KoncileAiWebhookController extends Controller
         };
 
         return response()->json(['message' => 'Webhook processed']);
+    }
+
+    /**
+     * Handle a completed extraction from Koncile AI.
+     *
+     * Parses the Koncile-specific response format and calls the generic service.
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    private function handleCompleted(DocumentExtractionService $service, string $taskId, array $payload): ?DocumentExtraction
+    {
+        /** @var array<string, array{value: string, confidence_score: float}> $generalFields */
+        $generalFields = $payload['General_fields'] ?? [];
+
+        $identifier = $this->resolveIdentifier($taskId, $generalFields);
+
+        $extractedData = (object) $payload;
+
+        return $service->complete($taskId, $extractedData, $identifier);
+    }
+
+    /**
+     * Resolve the identifier from extracted data using the extraction's metadata.
+     *
+     * @param  array<string, mixed>  $generalFields
+     */
+    private function resolveIdentifier(string $taskId, array $generalFields): string
+    {
+        $extraction = DocumentExtraction::query()
+            ->where('external_task_id', $taskId)
+            ->first();
+
+        if (! $extraction) {
+            return '';
+        }
+
+        $identifierField = $extraction->metadata['identifier_field'] ?? null;
+
+        if (! $identifierField || ! isset($generalFields[$identifierField]['value'])) {
+            return '';
+        }
+
+        return (string) $generalFields[$identifierField]['value'];
     }
 
     private function verifySignature(Request $request): bool

@@ -37,7 +37,7 @@ class KoncileAiIntegration implements DocumentExtractionProvider
 
     /**
      * @param  array<string, mixed>  $metadata
-     * @return array{status: string, data?: array<string, mixed>, message: string}
+     * @return array{status: string, external_id?: string, message: string}
      */
     public function extract(string $filePath, string $documentType, array $metadata = []): array
     {
@@ -92,7 +92,7 @@ class KoncileAiIntegration implements DocumentExtractionProvider
 
                 return [
                     'status' => DocumentExtractionStatusEnum::Pending->value,
-                    'data' => $data,
+                    'external_id' => $data['task_ids'][0] ?? null,
                     'message' => 'File uploaded successfully.',
                 ];
             }
