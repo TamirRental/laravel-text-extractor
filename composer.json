@@ -1,5 +1,5 @@
 {
-    "name": "tamir/laravel-text-extractor",
+    "name": "TamirRental/laravel-text-extractor",
     "description": "A Laravel package for extracting structured data from documents via OCR APIs. Ships with Koncile AI provider.",
     "keywords": [
         "tamir",
@@ -13,7 +13,7 @@
     "license": "MIT",
     "authors": [
         {
-            "name": "Tamir",
+            "name": "TamirRental",
             "role": "Developer"
         }
     ],
@@ -30,13 +30,13 @@
     },
     "autoload": {
         "psr-4": {
-            "Tamir\\DocumentExtraction\\": "src/",
-            "Tamir\\DocumentExtraction\\Database\\Factories\\": "database/factories/"
+            "TamirRental\\DocumentExtraction\\": "src/",
+            "TamirRental\\DocumentExtraction\\Database\\Factories\\": "database/factories/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Tamir\\DocumentExtraction\\Tests\\": "tests/"
+            "TamirRental\\DocumentExtraction\\Tests\\": "tests/"
         }
     },
     "scripts": {
@@ -52,7 +52,7 @@
     "extra": {
         "laravel": {
             "providers": [
-                "Tamir\\DocumentExtraction\\DocumentExtractionServiceProvider"
+                "TamirRental\\DocumentExtraction\\DocumentExtractionServiceProvider"
             ]
         },
         "branch-alias": {
