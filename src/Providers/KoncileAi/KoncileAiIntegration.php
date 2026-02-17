@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace TamirRental\DocumentExtraction\Providers\KoncileAi;
 
 use Illuminate\Support\Facades\Http;
