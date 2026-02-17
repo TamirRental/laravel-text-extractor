@@ -1,0 +1,24 @@
+name: Run Linter
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  laravel-pint:
+    name: Run Pint - Laravel Linter
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+
+      - name: Execute Pint
+        run: vendor/bin/pint --test
