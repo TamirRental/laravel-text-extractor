@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Tamir\DocumentExtraction\Database\Factories;
+namespace TamirRental\DocumentExtraction\Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use Tamir\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
-use Tamir\DocumentExtraction\Models\DocumentExtraction;
+use TamirRental\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
+use TamirRental\DocumentExtraction\Models\DocumentExtraction;
 
 /**
  * @extends Factory<DocumentExtraction>

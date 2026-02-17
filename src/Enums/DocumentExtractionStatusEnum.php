@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tamir\DocumentExtraction\Enums;
+namespace TamirRental\DocumentExtraction\Enums;
 
 enum DocumentExtractionStatusEnum: string
 {

@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Tamir\DocumentExtraction\Models;
+namespace TamirRental\DocumentExtraction\Models;
 
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Tamir\DocumentExtraction\Database\Factories\DocumentExtractionFactory;
-use Tamir\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
+use TamirRental\DocumentExtraction\Database\Factories\DocumentExtractionFactory;
+use TamirRental\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
 
 class DocumentExtraction extends Model
 {
