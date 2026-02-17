@@ -1,5 +1,5 @@
 {
-    "name": "TamirRental/laravel-text-extractor",
+    "name": "tamirrental/laravel-text-extractor",
     "description": "A Laravel package for extracting structured data from documents via OCR APIs. Ships with Koncile AI provider.",
     "keywords": [
         "laravel",
