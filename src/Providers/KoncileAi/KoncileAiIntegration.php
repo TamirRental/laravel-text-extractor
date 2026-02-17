@@ -4,9 +4,11 @@ namespace TamirRental\DocumentExtraction\Providers\KoncileAi;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use InvalidArgumentException;
 use TamirRental\DocumentExtraction\Contracts\DocumentExtractionProvider;
 use TamirRental\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
+use TamirRental\DocumentExtraction\Models\DocumentExtraction;
 
 class KoncileAiIntegration implements DocumentExtractionProvider
 {
@@ -34,10 +36,63 @@ class KoncileAiIntegration implements DocumentExtractionProvider
     }
 
     /**
+     * Process a document extraction request.
+     *
+     * Downloads the file from storage, uploads it to Koncile AI,
+     * and updates the extraction model with the result.
+     */
+    public function process(DocumentExtraction $extraction): void
+    {
+        $tempPath = null;
+
+        try {
+            $tempPath = sys_get_temp_dir().'/'.uniqid('extraction_').'-'.basename($extraction->filename);
+
+            $contents = Storage::get($extraction->filename);
+
+            if ($contents === null) {
+                $this->fail($extraction, "File not found in storage: {$extraction->filename}");
+
+                return;
+            }
+
+            file_put_contents($tempPath, $contents);
+
+            $result = $this->upload($tempPath, $extraction->type, $extraction->metadata ?? []);
+
+            if ($result['status'] === DocumentExtractionStatusEnum::Pending->value && ! empty($result['external_id'])) {
+                $extraction->update([
+                    'external_task_id' => $result['external_id'],
+                ]);
+
+                Log::info('Document extraction submitted', [
+                    'extraction_id' => $extraction->id,
+                    'external_task_id' => $result['external_id'],
+                ]);
+            } else {
+                $this->fail($extraction, $result['message'] ?? 'Unexpected provider response.');
+            }
+        } catch (\Throwable $e) {
+            Log::error('Document extraction failed', [
+                'extraction_id' => $extraction->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            $this->fail($extraction, $e->getMessage());
+        } finally {
+            if ($tempPath && file_exists($tempPath)) {
+                unlink($tempPath);
+            }
+        }
+    }
+
+    /**
+     * Upload a file to Koncile AI for extraction.
+     *
      * @param  array<string, mixed>  $metadata
      * @return array{status: string, external_id?: string, message: string}
      */
-    public function extract(string $filePath, string $documentType, array $metadata = []): array
+    private function upload(string $filePath, string $documentType, array $metadata = []): array
     {
         $templateId = $metadata['template_id'] ?? null;
 
@@ -139,5 +194,21 @@ class KoncileAiIntegration implements DocumentExtractionProvider
         ]);
 
         return $this->failedResponse($message);
+    }
+
+    /**
+     * Mark an extraction as failed with the given message.
+     */
+    private function fail(DocumentExtraction $extraction, string $message): void
+    {
+        $extraction->update([
+            'status' => DocumentExtractionStatusEnum::Failed,
+            'error_message' => $message,
+        ]);
+
+        Log::error('Document extraction failed', [
+            'extraction_id' => $extraction->id,
+            'error_message' => $message,
+        ]);
     }
 }
