@@ -19,6 +19,7 @@ class DocumentExtraction extends Model
         'filename',
         'identifier',
         'extracted_data',
+        'metadata',
         'status',
         'error_message',
         'external_task_id',
@@ -31,6 +32,7 @@ class DocumentExtraction extends Model
     {
         return [
             'extracted_data' => 'object',
+            'metadata' => 'array',
             'status' => DocumentExtractionStatusEnum::class,
         ];
     }

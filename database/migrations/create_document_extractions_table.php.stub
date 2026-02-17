@@ -16,6 +16,7 @@ return new class extends Migration
             $table->string('filename');
             $table->string('identifier');
             $table->json('extracted_data');
+            $table->json('metadata')->nullable();
             $table->string('status');
             $table->text('error_message')->nullable();
             $table->string('external_task_id')->nullable();

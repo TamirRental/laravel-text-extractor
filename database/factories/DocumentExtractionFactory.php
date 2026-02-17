@@ -25,6 +25,7 @@ class DocumentExtractionFactory extends Factory
             'filename' => fake()->uuid().'.pdf',
             'identifier' => '',
             'extracted_data' => (object) [],
+            'metadata' => [],
             'status' => DocumentExtractionStatusEnum::Pending,
             'error_message' => null,
             'external_task_id' => null,
