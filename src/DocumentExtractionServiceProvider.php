@@ -22,7 +22,7 @@ class DocumentExtractionServiceProvider extends PackageServiceProvider
     {
         $package
             ->name('document-extraction')
-            ->hasConfigFile(['document-extraction', 'document-extraction-types'])
+            ->hasConfigFile('document-extraction')
             ->hasMigration('create_document_extractions_table')
             ->hasTranslations()
             ->hasRoute('api')
