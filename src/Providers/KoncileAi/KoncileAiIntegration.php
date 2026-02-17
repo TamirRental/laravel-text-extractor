@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Tamir\DocumentExtraction\Providers\KoncileAi;
+namespace TamirRental\DocumentExtraction\Providers\KoncileAi;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
-use Tamir\DocumentExtraction\Contracts\DocumentExtractionProvider;
-use Tamir\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
+use TamirRental\DocumentExtraction\Contracts\DocumentExtractionProvider;
+use TamirRental\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
 
 class KoncileAiIntegration implements DocumentExtractionProvider
 {

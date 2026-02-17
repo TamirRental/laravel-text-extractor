@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace Tamir\DocumentExtraction\Providers\KoncileAi;
+namespace TamirRental\DocumentExtraction\Providers\KoncileAi;
 
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Log;
-use Tamir\DocumentExtraction\Services\DocumentExtractionService;
+use TamirRental\DocumentExtraction\Services\DocumentExtractionService;
 
 class KoncileAiWebhookController extends Controller
 {
