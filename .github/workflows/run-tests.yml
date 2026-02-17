@@ -21,4 +21,5 @@ jobs:
         run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
 
       - name: Execute tests via Pest
+        if: hashFiles('tests/**') != ''
         run: vendor/bin/pest
