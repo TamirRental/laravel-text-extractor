@@ -78,7 +78,7 @@ class DocumentExtractionService
 
             $result = $this->provider->extract($tempPath, $extraction->type, $extraction->metadata ?? []);
 
-            if ($result['status'] === DocumentExtractionStatusEnum::Pending->value && !empty($result['data']['task_ids'])) {
+            if ($result['status'] === DocumentExtractionStatusEnum::Pending->value && ! empty($result['data']['task_ids'])) {
                 $extraction->update([
                     'external_task_id' => $result['data']['task_ids'][0],
                 ]);
@@ -115,7 +115,7 @@ class DocumentExtractionService
     {
         $extraction = $this->findByTaskId($taskId);
 
-        if (!$extraction) {
+        if (! $extraction) {
             Log::warning('No extraction found for task ID', ['task_id' => $taskId]);
 
             return null;
@@ -149,7 +149,7 @@ class DocumentExtractionService
             ? $extractionOrTaskId
             : $this->findByTaskId($extractionOrTaskId);
 
-        if (!$extraction) {
+        if (! $extraction) {
             Log::warning('No extraction found for failure', [
                 'identifier' => $extractionOrTaskId,
                 'message' => $message,
