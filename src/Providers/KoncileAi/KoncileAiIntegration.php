@@ -53,7 +53,7 @@ class KoncileAiIntegration implements DocumentExtractionProvider
 
         $folderId = $metadata['folder_id'] ?? null;
 
-        if (!file_exists($filePath) || !is_readable($filePath)) {
+        if (! file_exists($filePath) || ! is_readable($filePath)) {
             Log::error('File not accessible for extraction', [
                 'file' => $filePath,
             ]);

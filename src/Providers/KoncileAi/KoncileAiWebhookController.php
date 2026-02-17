@@ -14,7 +14,7 @@ class KoncileAiWebhookController extends Controller
 {
     public function handle(Request $request, DocumentExtractionService $service): JsonResponse
     {
-        if (!$this->verifySignature($request)) {
+        if (! $this->verifySignature($request)) {
             Log::warning('Koncile AI webhook signature verification failed');
 
             return response()->json(['error' => 'Invalid signature'], 403);
@@ -26,7 +26,7 @@ class KoncileAiWebhookController extends Controller
         $taskId = (string) ($payload['task_id'] ?? '');
         $status = (string) ($payload['status'] ?? '');
 
-        if (!$taskId) {
+        if (! $taskId) {
             return response()->json(['error' => 'Missing task_id'], 400);
         }
 
@@ -60,7 +60,7 @@ class KoncileAiWebhookController extends Controller
         /** @var ?string $secret */
         $secret = config('document-extraction.providers.koncile_ai.webhook_secret');
 
-        if (!$secret) {
+        if (! $secret) {
             if (app()->environment('production')) {
                 Log::error('Koncile AI webhook secret not configured in production');
 
@@ -75,7 +75,7 @@ class KoncileAiWebhookController extends Controller
         $signature = $request->header('X-Koncile-Signature', '');
         $timestamp = $request->header('X-Koncile-Timestamp', '');
 
-        if (!$signature || !$timestamp) {
+        if (! $signature || ! $timestamp) {
             return false;
         }
 
