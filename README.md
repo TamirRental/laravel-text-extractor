@@ -200,23 +200,30 @@ You can create your own extraction provider by implementing the `DocumentExtract
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Storage;
 use TamirRental\DocumentExtraction\Contracts\DocumentExtractionProvider;
+use TamirRental\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
+use TamirRental\DocumentExtraction\Models\DocumentExtraction;
 
 class MyCustomProvider implements DocumentExtractionProvider
 {
     /**
-     * @param  array<string, mixed>  $metadata
-     * @return array{status: string, external_id?: string, message: string}
+     * Process a document extraction request.
+     *
+     * The provider owns the full workflow: downloading the file,
+     * calling the extraction API, and updating the model.
      */
-    public function extract(string $filePath, string $documentType, array $metadata = []): array
+    public function process(DocumentExtraction $extraction): void
     {
         // Your extraction logic here...
+        // Download file: Storage::get($extraction->filename)
+        // Call your API, then update the model:
 
-        return [
-            'status' => 'pending',
-            'external_id' => 'your-task-id',
-            'message' => 'File uploaded successfully.',
-        ];
+        $extraction->update([
+            'status' => DocumentExtractionStatusEnum::Completed,
+            'extracted_data' => (object) ['field' => 'value'],
+            'identifier' => 'parsed-id',
+        ]);
     }
 }
 ```
