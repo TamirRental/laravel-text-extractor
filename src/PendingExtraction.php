@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 namespace TamirRental\DocumentExtraction;
 
 use Illuminate\Support\Traits\Conditionable;
