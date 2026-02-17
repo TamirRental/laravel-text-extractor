@@ -36,21 +36,22 @@ class KoncileAiIntegration implements DocumentExtractionProvider
     }
 
     /**
+     * @param  array<string, mixed>  $metadata
      * @return array{status: string, data?: array<string, mixed>, message: string}
      */
-    public function extract(string $filePath, string $documentType): array
+    public function extract(string $filePath, string $documentType, array $metadata = []): array
     {
-        $templateId = $this->resolveTemplateId($documentType);
+        $templateId = $metadata['template_id'] ?? null;
 
-        if (!$templateId) {
-            Log::error('No template configured for document type', [
+        if (! $templateId) {
+            Log::error('No template_id provided in metadata', [
                 'document_type' => $documentType,
             ]);
 
-            return $this->failedResponse("No template configured for document type: {$documentType}");
+            return $this->failedResponse("No template_id provided in metadata for document type: {$documentType}");
         }
 
-        $folderId = $this->resolveFolderId($documentType);
+        $folderId = $metadata['folder_id'] ?? null;
 
         if (!file_exists($filePath) || !is_readable($filePath)) {
             Log::error('File not accessible for extraction', [
@@ -109,22 +110,6 @@ class KoncileAiIntegration implements DocumentExtractionProvider
                 fclose($handle);
             }
         }
-    }
-
-    private function resolveTemplateId(string $documentType): ?string
-    {
-        /** @var array<string, array{template_id: ?string, folder_id: ?string, identifier: string}> $types */
-        $types = config('document-extraction-types', []);
-
-        return $types[$documentType]['template_id'] ?? null;
-    }
-
-    private function resolveFolderId(string $documentType): ?string
-    {
-        /** @var array<string, array{template_id: ?string, folder_id: ?string, identifier: string}> $types */
-        $types = config('document-extraction-types', []);
-
-        return $types[$documentType]['folder_id'] ?? null;
     }
 
     /**
