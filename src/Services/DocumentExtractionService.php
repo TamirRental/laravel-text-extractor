@@ -22,10 +22,12 @@ class DocumentExtractionService
      *
      * When a new extraction is created, the DocumentExtractionRequested
      * event is automatically dispatched to trigger async processing.
+     *
+     * @param  array<string, mixed>  $metadata  Provider-specific data (e.g. template_id, folder_id, identifier_field)
      */
-    public function extractOrRetrieve(string $type, string $filename, bool $force = false): DocumentExtraction
+    public function extractOrRetrieve(string $type, string $filename, array $metadata = [], bool $force = false): DocumentExtraction
     {
-        if (!$force) {
+        if (! $force) {
             $existing = DocumentExtraction::query()
                 ->forType($type)
                 ->forFile($filename)
@@ -42,6 +44,7 @@ class DocumentExtractionService
             'filename' => $filename,
             'identifier' => '',
             'extracted_data' => (object) [],
+            'metadata' => $metadata,
             'status' => DocumentExtractionStatusEnum::Pending,
         ]);
 
@@ -73,7 +76,7 @@ class DocumentExtractionService
 
             file_put_contents($tempPath, $contents);
 
-            $result = $this->provider->extract($tempPath, $extraction->type);
+            $result = $this->provider->extract($tempPath, $extraction->type, $extraction->metadata ?? []);
 
             if ($result['status'] === DocumentExtractionStatusEnum::Pending->value && !empty($result['data']['task_ids'])) {
                 $extraction->update([
@@ -125,7 +128,7 @@ class DocumentExtractionService
 
         $extraction->update([
             'status' => DocumentExtractionStatusEnum::Completed,
-            'identifier' => $this->resolveIdentifier($extraction->type, $generalFields),
+            'identifier' => $this->resolveIdentifier($extraction, $generalFields),
             'extracted_data' => $extractedData,
         ]);
 
@@ -179,20 +182,19 @@ class DocumentExtractionService
     }
 
     /**
-     * Resolve the identifier from extracted data based on document type.
+     * Resolve the identifier from extracted data using metadata's identifier_field.
      *
      * @param  array<string, mixed>  $generalFields
      */
-    private function resolveIdentifier(string $type, array $generalFields): string
+    private function resolveIdentifier(DocumentExtraction $extraction, array $generalFields): string
     {
-        /** @var array<string, array{template_id: ?string, folder_id: ?string, identifier: string}> $types */
-        $types = config('document-extraction-types', []);
+        $identifierField = $extraction->metadata['identifier_field'] ?? null;
 
-        if (!isset($types[$type]['identifier'])) {
+        if (! $identifierField) {
             return '';
         }
 
-        return $this->extractFieldValue($generalFields, $types[$type]['identifier']);
+        return $this->extractFieldValue($generalFields, $identifierField);
     }
 
     /**
