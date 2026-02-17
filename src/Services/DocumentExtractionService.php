@@ -3,7 +3,6 @@
 namespace TamirRental\DocumentExtraction\Services;
 
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use TamirRental\DocumentExtraction\Contracts\DocumentExtractionProvider;
 use TamirRental\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
 use TamirRental\DocumentExtraction\Events\DocumentExtractionRequested;
@@ -65,54 +64,11 @@ class DocumentExtractionService
     }
 
     /**
-     * Download the file from storage, upload to provider, and save the external ID.
+     * Delegate extraction processing to the configured provider.
      */
     public function processExtraction(DocumentExtraction $extraction): void
     {
-        $tempPath = null;
-
-        try {
-            $tempPath = sys_get_temp_dir().'/'.uniqid('extraction_').'-'.basename($extraction->filename);
-
-            $contents = Storage::get($extraction->filename);
-
-            if ($contents === null) {
-                $this->fail(
-                    $extraction,
-                    "File not found in storage: {$extraction->filename}"
-                );
-
-                return;
-            }
-
-            file_put_contents($tempPath, $contents);
-
-            $result = $this->provider->extract($tempPath, $extraction->type, $extraction->metadata ?? []);
-
-            if ($result['status'] === DocumentExtractionStatusEnum::Pending->value && ! empty($result['external_id'])) {
-                $extraction->update([
-                    'external_task_id' => $result['external_id'],
-                ]);
-
-                Log::info('Document extraction submitted', [
-                    'extraction_id' => $extraction->id,
-                    'external_task_id' => $result['external_id'],
-                ]);
-            } else {
-                $this->fail($extraction, $result['message'] ?? 'Unexpected provider response.');
-            }
-        } catch (\Throwable $e) {
-            Log::error('Document extraction failed', [
-                'extraction_id' => $extraction->id,
-                'error' => $e->getMessage(),
-            ]);
-
-            $this->fail($extraction, $e->getMessage());
-        } finally {
-            if ($tempPath && file_exists($tempPath)) {
-                unlink($tempPath);
-            }
-        }
+        $this->provider->process($extraction);
     }
 
     /**

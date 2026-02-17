@@ -2,13 +2,15 @@
 
 namespace TamirRental\DocumentExtraction\Contracts;
 
+use TamirRental\DocumentExtraction\Models\DocumentExtraction;
+
 interface DocumentExtractionProvider
 {
     /**
-     * Upload a file for extraction and return the provider's response.
+     * Process a document extraction request.
      *
-     * @param  array<string, mixed>  $metadata
-     * @return array{status: string, external_id?: string, message: string}
+     * The provider is responsible for the full workflow: downloading the file,
+     * uploading to the extraction service, and updating the model accordingly.
      */
-    public function extract(string $filePath, string $documentType, array $metadata = []): array;
+    public function process(DocumentExtraction $extraction): void;
 }
