@@ -44,9 +44,7 @@ it('uploads file successfully and returns pending status', function () {
     expect($result)
         ->toHaveKey('status', 'pending')
         ->toHaveKey('message', 'File uploaded successfully.')
-        ->toHaveKey('data');
-
-    expect($result['data']['task_ids'])->toContain('task-abc-123');
+        ->toHaveKey('external_id', 'task-abc-123');
 
     Http::assertSent(function ($request) {
         return str_contains($request->url(), 'v1/upload_file')

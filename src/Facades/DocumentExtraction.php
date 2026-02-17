@@ -8,10 +8,10 @@ use Illuminate\Support\Facades\Facade;
 use TamirRental\DocumentExtraction\Services\DocumentExtractionService;
 
 /**
- * @method static \TamirRental\DocumentExtraction\Models\DocumentExtraction extractOrRetrieve(string $type, string $filename, bool $force = false)
+ * @method static \TamirRental\DocumentExtraction\PendingExtraction extract(string $type, string $filename)
  * @method static void processExtraction(\TamirRental\DocumentExtraction\Models\DocumentExtraction $extraction)
- * @method static \TamirRental\DocumentExtraction\Models\DocumentExtraction|null completeExtraction(string $taskId, array $generalFields, array $lineFields, array $fullPayload = [])
- * @method static \TamirRental\DocumentExtraction\Models\DocumentExtraction|null failExtraction(\TamirRental\DocumentExtraction\Models\DocumentExtraction|string $extractionOrTaskId, string $message)
+ * @method static \TamirRental\DocumentExtraction\Models\DocumentExtraction|null complete(string $taskId, object $extractedData, string $identifier = '')
+ * @method static \TamirRental\DocumentExtraction\Models\DocumentExtraction|null fail(\TamirRental\DocumentExtraction\Models\DocumentExtraction|string $extractionOrTaskId, string $message)
  *
  * @see \TamirRental\DocumentExtraction\Services\DocumentExtractionService
  */

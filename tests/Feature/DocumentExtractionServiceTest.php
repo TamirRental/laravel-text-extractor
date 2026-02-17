@@ -9,6 +9,7 @@ use TamirRental\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
 use TamirRental\DocumentExtraction\Events\DocumentExtractionRequested;
 use TamirRental\DocumentExtraction\Listeners\ProcessDocumentExtraction;
 use TamirRental\DocumentExtraction\Models\DocumentExtraction;
+use TamirRental\DocumentExtraction\PendingExtraction;
 use TamirRental\DocumentExtraction\Providers\KoncileAi\KoncileAiIntegration;
 use TamirRental\DocumentExtraction\Services\DocumentExtractionService;
 
@@ -18,12 +19,18 @@ beforeEach(function () {
     $this->service = $this->app->make(DocumentExtractionService::class);
 });
 
-// --- extractOrRetrieve ---
+// --- extract (fluent API) ---
+
+it('returns a PendingExtraction instance from extract', function () {
+    $pending = $this->service->extract('car_license', 'documents/test.pdf');
+
+    expect($pending)->toBeInstanceOf(PendingExtraction::class);
+});
 
 it('creates a new pending extraction and dispatches event', function () {
     Event::fake([DocumentExtractionRequested::class]);
 
-    $extraction = $this->service->extractOrRetrieve('car_license', 'documents/test.pdf');
+    $extraction = $this->service->extract('car_license', 'documents/test.pdf')->submit();
 
     expect($extraction)
         ->toBeInstanceOf(DocumentExtraction::class)
@@ -46,14 +53,14 @@ it('returns existing extraction without dispatching event', function () {
         'filename' => 'documents/test.pdf',
     ]);
 
-    $result = $this->service->extractOrRetrieve('car_license', 'documents/test.pdf');
+    $result = $this->service->extract('car_license', 'documents/test.pdf')->submit();
 
     expect($result->id)->toBe($existing->id);
 
     Event::assertNotDispatched(DocumentExtractionRequested::class);
 });
 
-it('creates new extraction with force flag and dispatches event', function () {
+it('creates new extraction with force and dispatches event', function () {
     Event::fake([DocumentExtractionRequested::class]);
 
     $existing = DocumentExtraction::factory()->create([
@@ -61,12 +68,61 @@ it('creates new extraction with force flag and dispatches event', function () {
         'filename' => 'documents/test.pdf',
     ]);
 
-    $result = $this->service->extractOrRetrieve('car_license', 'documents/test.pdf', [], true);
+    $result = $this->service->extract('car_license', 'documents/test.pdf')
+        ->force()
+        ->submit();
 
     expect($result->id)->not->toBe($existing->id);
     expect(DocumentExtraction::count())->toBe(2);
 
     Event::assertDispatched(DocumentExtractionRequested::class);
+});
+
+it('stores metadata via fluent method', function () {
+    Event::fake([DocumentExtractionRequested::class]);
+
+    $metadata = ['template_id' => '26790', 'identifier_field' => 'license_number'];
+
+    $extraction = $this->service->extract('car_license', 'documents/test.pdf')
+        ->metadata($metadata)
+        ->submit();
+
+    expect($extraction->metadata)->toBe($metadata);
+});
+
+it('supports conditional force with when', function () {
+    Event::fake([DocumentExtractionRequested::class]);
+
+    $existing = DocumentExtraction::factory()->create([
+        'type' => 'car_license',
+        'filename' => 'documents/test.pdf',
+    ]);
+
+    $shouldForce = true;
+
+    $result = $this->service->extract('car_license', 'documents/test.pdf')
+        ->when($shouldForce, fn (PendingExtraction $pending) => $pending->force())
+        ->submit();
+
+    expect($result->id)->not->toBe($existing->id);
+});
+
+it('does not force when condition is false', function () {
+    Event::fake([DocumentExtractionRequested::class]);
+
+    $existing = DocumentExtraction::factory()->create([
+        'type' => 'car_license',
+        'filename' => 'documents/test.pdf',
+    ]);
+
+    $shouldForce = false;
+
+    $result = $this->service->extract('car_license', 'documents/test.pdf')
+        ->when($shouldForce, fn (PendingExtraction $pending) => $pending->force())
+        ->submit();
+
+    expect($result->id)->toBe($existing->id);
+    Event::assertNotDispatched(DocumentExtractionRequested::class);
 });
 
 // --- processExtraction ---
@@ -84,7 +140,7 @@ it('downloads file from storage and uploads to provider', function () {
         ->once()
         ->andReturn([
             'status' => 'pending',
-            'data' => ['task_ids' => ['task-123']],
+            'external_id' => 'task-123',
             'message' => 'File uploaded successfully.',
         ]);
 
@@ -168,7 +224,7 @@ it('overwrites external_task_id when re-processing an extraction', function () {
         ->once()
         ->andReturn([
             'status' => 'pending',
-            'data' => ['task_ids' => ['new-task-id']],
+            'external_id' => 'new-task-id',
             'message' => 'File uploaded successfully.',
         ]);
 
@@ -178,57 +234,52 @@ it('overwrites external_task_id when re-processing an extraction', function () {
     expect($extraction->external_task_id)->toBe('new-task-id');
 });
 
-// --- completeExtraction ---
+// --- complete ---
 
 it('completes extraction with extracted data', function () {
     $extraction = DocumentExtraction::factory()->pending()->create([
         'external_task_id' => 'task-456',
-        'metadata' => ['identifier_field' => 'license_number'],
     ]);
 
-    $generalFields = [
-        'license_number' => ['value' => '12-345-67', 'confidence_score' => 0.95],
-        'owner_name' => ['value' => 'Test User', 'confidence_score' => 0.90],
+    $extractedData = (object) [
+        'General_fields' => [
+            'license_number' => ['value' => '12-345-67', 'confidence_score' => 0.95],
+        ],
+        'Line_fields' => [],
     ];
 
-    $lineFields = [
-        ['field' => 'value1'],
-    ];
-
-    $result = $this->service->completeExtraction('task-456', $generalFields, $lineFields);
+    $result = $this->service->complete('task-456', $extractedData, '12-345-67');
 
     expect($result)
         ->not->toBeNull()
         ->status->toBe(DocumentExtractionStatusEnum::Completed)
         ->identifier->toBe('12-345-67');
 
-    expect($result->extracted_data->general_fields)->toBeObject();
-    expect($result->extracted_data->general_fields->license_number->value)->toBe('12-345-67');
-    expect($result->extracted_data->line_fields)->toBeArray();
+    expect($result->extracted_data->General_fields)->toBeObject();
 });
 
 it('returns null when completing extraction with unknown task id', function () {
-    $result = $this->service->completeExtraction('unknown-task', [], []);
+    $result = $this->service->complete('unknown-task', (object) []);
 
     expect($result)->toBeNull();
 });
 
-it('resolves empty identifier when identifier field is missing', function () {
+it('completes extraction with empty identifier when not provided', function () {
     $extraction = DocumentExtraction::factory()->pending()->create([
         'external_task_id' => 'task-789',
     ]);
 
-    $result = $this->service->completeExtraction('task-789', [], []);
+    $result = $this->service->complete('task-789', (object) []);
 
     expect($result->identifier)->toBe('');
 });
 
-// --- failExtraction ---
+// --- fail ---
 
 it('fails extraction by model instance', function () {
     $extraction = DocumentExtraction::factory()->pending()->create();
 
-    $result = $this->service->failExtraction($extraction, 'Something went wrong');
+    $result = $this->service->fail($extraction, 'Something went wrong');
 
     expect($result)
         ->status->toBe(DocumentExtractionStatusEnum::Failed)
@@ -240,7 +291,7 @@ it('fails extraction by external task id', function () {
         'external_task_id' => 'task-fail-1',
     ]);
 
-    $result = $this->service->failExtraction('task-fail-1', 'Provider error');
+    $result = $this->service->fail('task-fail-1', 'Provider error');
 
     expect($result)
         ->not->toBeNull()
@@ -250,7 +301,7 @@ it('fails extraction by external task id', function () {
 });
 
 it('returns null when failing extraction with unknown task id', function () {
-    $result = $this->service->failExtraction('unknown-task', 'Some error');
+    $result = $this->service->fail('unknown-task', 'Some error');
 
     expect($result)->toBeNull();
 });
@@ -270,7 +321,7 @@ it('listener calls processExtraction on the service', function () {
         ->once()
         ->andReturn([
             'status' => 'pending',
-            'data' => ['task_ids' => ['task-listener']],
+            'external_id' => 'task-listener',
             'message' => 'Uploaded.',
         ]);
 
