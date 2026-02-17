@@ -5,9 +5,9 @@ A Laravel package for extracting structured data from documents (images, PDFs) v
 ## Features
 
 - Extract structured data from documents using OCR providers
+- Fluent API — chainable `metadata()`, `force()`, and `submit()` methods
 - Async processing via Laravel queues
 - Webhook support for provider callbacks
-- Metadata-driven — pass provider-specific data (template ID, folder ID, identifier field) per extraction
 - Pluggable provider architecture — bring your own OCR provider
 - Facade for clean, expressive syntax
 - Built-in model scopes for querying extractions
@@ -74,19 +74,21 @@ use TamirRental\DocumentExtraction\Facades\DocumentExtraction;
 // Store the uploaded file
 $path = $file->store('documents/car-licenses', 's3');
 
-// Extract — creates a record and dispatches async processing automatically
-$extraction = DocumentExtraction::extractOrRetrieve('car_license', $path, [
-    'template_id' => 'your-koncile-template-id',
-    'folder_id' => 'optional-folder-id',         // optional
-    'identifier_field' => 'license_number',       // optional — used to resolve identifier from extracted data
-]);
+// Extract — creates a record and dispatches async processing
+$extraction = DocumentExtraction::extract('car_license', $path)
+    ->metadata([
+        'template_id' => 'your-koncile-template-id',
+        'folder_id' => 'optional-folder-id',         // optional
+        'identifier_field' => 'license_number',       // optional — used to resolve identifier from extracted data
+    ])
+    ->submit();
 ```
 
 The package automatically dispatches a queued job to download the file from storage, upload it to the OCR provider, and track the result.
 
 ### Metadata
 
-The third parameter is a `metadata` array that gets stored on the extraction record and passed to the provider. This is how you supply provider-specific data without any config files.
+The `metadata()` method accepts a key-value array that gets stored on the extraction record and passed to the provider. This is how you supply provider-specific data without any config files.
 
 | Key | Required | Description |
 |-----|----------|-------------|
@@ -96,12 +98,24 @@ The third parameter is a `metadata` array that gets stored on the extraction rec
 
 ### Force Re-extraction
 
-If an extraction already exists for a file, pass `force: true` to create a new one:
+If an extraction already exists for a file, chain `force()` to create a new one:
 
 ```php
-$extraction = DocumentExtraction::extractOrRetrieve('car_license', $path, [
-    'template_id' => 'your-template-id',
-], force: true);
+$extraction = DocumentExtraction::extract('car_license', $path)
+    ->metadata(['template_id' => 'your-template-id'])
+    ->force()
+    ->submit();
+```
+
+### Conditional Force
+
+Using the `Conditionable` trait, you can conditionally chain methods:
+
+```php
+$extraction = DocumentExtraction::extract('car_license', $path)
+    ->metadata(['template_id' => 'your-template-id'])
+    ->when($shouldForce, fn ($pending) => $pending->force())
+    ->submit();
 ```
 
 ### Checking Extraction Status
@@ -144,15 +158,14 @@ DocumentExtraction::forType('car_license')->completed()->latest()->first();
 1. Your App                    2. Queue Worker               3. Provider (Koncile AI)
    │                              │                              │
    ├─ Store file to S3            │                              │
-   ├─ extractOrRetrieve() ───────►│                              │
+   ├─ extract()->submit() ───────►│                              │
    │  (auto-dispatches event)     ├─ Download from S3            │
    │                              ├─ Upload to provider ────────►│
    │                              ├─ Save external_task_id       │
    │                              │                              ├─ OCR Processing...
    │                              │                              │
    │                              │         Webhook callback ◄───┤
-   │                              │         completeExtraction()  │
-   │                              │         or failExtraction()   │
+   │                              │         complete() / fail()   │
    │                              │                              │
    ├─ Check status / display      │                              │
 ```
@@ -163,7 +176,7 @@ DocumentExtraction::forType('car_license')->completed()->latest()->first();
 |-------|--------|------------------|----------------|
 | Record created | `pending` | `null` | `{}` |
 | Sent to provider | `pending` | `task-abc-123` | `{}` |
-| Provider succeeds | `completed` | `task-abc-123` | `{general_fields: {...}}` |
+| Provider succeeds | `completed` | `task-abc-123` | `{...provider data}` |
 | Provider fails | `failed` | `task-abc-123` | `{}` |
 
 ## Webhook Setup
@@ -193,7 +206,7 @@ class MyCustomProvider implements DocumentExtractionProvider
 {
     /**
      * @param  array<string, mixed>  $metadata
-     * @return array{status: string, data?: array<string, mixed>, message: string}
+     * @return array{status: string, external_id?: string, message: string}
      */
     public function extract(string $filePath, string $documentType, array $metadata = []): array
     {
@@ -201,7 +214,7 @@ class MyCustomProvider implements DocumentExtractionProvider
 
         return [
             'status' => 'pending',
-            'data' => ['task_ids' => ['your-task-id']],
+            'external_id' => 'your-task-id',
             'message' => 'File uploaded successfully.',
         ];
     }
@@ -224,7 +237,7 @@ public function register(): void
 
 | Event | Dispatched When |
 |-------|----------------|
-| `DocumentExtractionRequested` | Automatically dispatched when `extractOrRetrieve()` creates a new extraction |
+| `DocumentExtractionRequested` | Automatically dispatched when `extract()->submit()` creates a new extraction |
 
 The event is dispatched internally — you don't need to dispatch it yourself. The queued listener downloads the file from storage and uploads it to the provider.
 
