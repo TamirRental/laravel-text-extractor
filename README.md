@@ -7,7 +7,7 @@ A Laravel package for extracting structured data from documents (images, PDFs) v
 - Extract structured data from documents using OCR providers
 - Async processing via Laravel queues
 - Webhook support for provider callbacks
-- Config-based document types — no code changes needed to add new types
+- Metadata-driven — pass provider-specific data (template ID, folder ID, identifier field) per extraction
 - Pluggable provider architecture — bring your own OCR provider
 - Facade for clean, expressive syntax
 - Built-in model scopes for querying extractions
@@ -20,10 +20,10 @@ A Laravel package for extracting structured data from documents (images, PDFs) v
 ## Installation
 
 ```bash
-composer require tamir/laravel-text-extractor
+composer require tamirrental/laravel-text-extractor
 ```
 
-Run the install command to publish the config files and migration:
+Run the install command to publish the config file and migration:
 
 ```bash
 php artisan document-extraction:install
@@ -37,11 +37,9 @@ php artisan migrate
 
 ## Configuration
 
-The install command publishes two config files:
-
 ### `config/document-extraction.php`
 
-Provider connection settings. Safe to republish on package updates.
+Provider connection settings.
 
 ```php
 return [
@@ -57,32 +55,6 @@ return [
 ];
 ```
 
-### `config/document-extraction-types.php`
-
-Define your document types here. Each key is a document type string used throughout the package.
-
-```php
-return [
-    'car_license' => [
-        'template_id' => env('KONCILE_AI_CAR_LICENSE_TEMPLATE_ID'),
-        'folder_id' => env('KONCILE_AI_CAR_LICENSE_FOLDER_ID'),
-        'identifier' => 'license_number',
-    ],
-
-    'invoice' => [
-        'template_id' => env('KONCILE_AI_INVOICE_TEMPLATE_ID'),
-        'folder_id' => env('KONCILE_AI_INVOICE_FOLDER_ID'),
-        'identifier' => 'invoice_number',
-    ],
-];
-```
-
-| Key | Description |
-|-----|-------------|
-| `template_id` | The OCR template ID on the provider side |
-| `folder_id` | Optional folder/organization ID on the provider side |
-| `identifier` | The field name from extracted data to use as a unique identifier (e.g. license number) |
-
 ### Environment Variables
 
 Add these to your `.env` file:
@@ -90,10 +62,6 @@ Add these to your `.env` file:
 ```env
 KONCILE_AI_API_KEY=your-api-key
 KONCILE_AI_WEBHOOK_SECRET=your-webhook-secret
-
-# Per document type
-KONCILE_AI_CAR_LICENSE_TEMPLATE_ID=12345
-KONCILE_AI_CAR_LICENSE_FOLDER_ID=67890
 ```
 
 ## Usage
@@ -101,29 +69,46 @@ KONCILE_AI_CAR_LICENSE_FOLDER_ID=67890
 ### Basic Usage with Facade
 
 ```php
-use Tamir\DocumentExtraction\Facades\DocumentExtraction;
+use TamirRental\DocumentExtraction\Facades\DocumentExtraction;
 
 // Store the uploaded file
 $path = $file->store('documents/car-licenses', 's3');
 
 // Extract — creates a record and dispatches async processing automatically
-$extraction = DocumentExtraction::extractOrRetrieve('car_license', $path);
+$extraction = DocumentExtraction::extractOrRetrieve('car_license', $path, [
+    'template_id' => 'your-koncile-template-id',
+    'folder_id' => 'optional-folder-id',         // optional
+    'identifier_field' => 'license_number',       // optional — used to resolve identifier from extracted data
+]);
 ```
 
-That's it. The package automatically dispatches a queued job to download the file from storage, upload it to the OCR provider, and track the result.
+The package automatically dispatches a queued job to download the file from storage, upload it to the OCR provider, and track the result.
+
+### Metadata
+
+The third parameter is a `metadata` array that gets stored on the extraction record and passed to the provider. This is how you supply provider-specific data without any config files.
+
+| Key | Required | Description |
+|-----|----------|-------------|
+| `template_id` | Yes (Koncile AI) | The OCR template ID on the provider side |
+| `folder_id` | No | Optional folder/organization ID on the provider side |
+| `identifier_field` | No | The field name from extracted data to use as a unique identifier (e.g. `license_number`) |
 
 ### Force Re-extraction
 
 If an extraction already exists for a file, pass `force: true` to create a new one:
 
 ```php
-$extraction = DocumentExtraction::extractOrRetrieve('car_license', $path, force: true);
+$extraction = DocumentExtraction::extractOrRetrieve('car_license', $path, [
+    'template_id' => 'your-template-id',
+], force: true);
 ```
 
 ### Checking Extraction Status
 
 ```php
-use Tamir\DocumentExtraction\Models\DocumentExtraction;
+use TamirRental\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
+use TamirRental\DocumentExtraction\Models\DocumentExtraction;
 
 $extraction = DocumentExtraction::find($id);
 
@@ -138,7 +123,7 @@ if ($extraction->status === DocumentExtractionStatusEnum::Completed) {
 The `DocumentExtraction` model includes useful scopes:
 
 ```php
-use Tamir\DocumentExtraction\Models\DocumentExtraction;
+use TamirRental\DocumentExtraction\Models\DocumentExtraction;
 
 // Filter by status
 DocumentExtraction::pending()->get();
@@ -193,26 +178,6 @@ Configure this URL in your Koncile AI dashboard as the webhook callback URL.
 
 In production, the webhook verifies the request signature using `KONCILE_AI_WEBHOOK_SECRET`. In non-production environments, signature verification is skipped if no secret is configured.
 
-## Adding Document Types
-
-To add a new document type, simply add an entry to `config/document-extraction-types.php`:
-
-```php
-'passport' => [
-    'template_id' => env('KONCILE_AI_PASSPORT_TEMPLATE_ID'),
-    'folder_id' => env('KONCILE_AI_PASSPORT_FOLDER_ID'),
-    'identifier' => 'passport_number',
-],
-```
-
-Then use it in your code:
-
-```php
-$extraction = DocumentExtraction::extractOrRetrieve('passport', $path);
-```
-
-No code changes required — everything is config-driven.
-
 ## Custom Providers
 
 You can create your own extraction provider by implementing the `DocumentExtractionProvider` contract:
@@ -222,14 +187,15 @@ You can create your own extraction provider by implementing the `DocumentExtract
 
 namespace App\Services;
 
-use Tamir\DocumentExtraction\Contracts\DocumentExtractionProvider;
+use TamirRental\DocumentExtraction\Contracts\DocumentExtractionProvider;
 
 class MyCustomProvider implements DocumentExtractionProvider
 {
     /**
+     * @param  array<string, mixed>  $metadata
      * @return array{status: string, data?: array<string, mixed>, message: string}
      */
-    public function extract(string $filePath, string $documentType): array
+    public function extract(string $filePath, string $documentType, array $metadata = []): array
     {
         // Your extraction logic here...
 
@@ -246,7 +212,7 @@ Then register it in the service provider by extending the package's binding:
 
 ```php
 // AppServiceProvider.php
-use Tamir\DocumentExtraction\Contracts\DocumentExtractionProvider;
+use TamirRental\DocumentExtraction\Contracts\DocumentExtractionProvider;
 
 public function register(): void
 {
@@ -269,7 +235,7 @@ Listen for extraction completion in your app by creating your own listener that 
 The package ships with model factories for testing:
 
 ```php
-use Tamir\DocumentExtraction\Models\DocumentExtraction;
+use TamirRental\DocumentExtraction\Models\DocumentExtraction;
 
 // Default (pending, no task ID)
 $extraction = DocumentExtraction::factory()->create();
@@ -282,6 +248,14 @@ $extraction = DocumentExtraction::factory()->completed()->create();
 
 // Failed with error
 $extraction = DocumentExtraction::factory()->failed()->create();
+
+// With metadata
+$extraction = DocumentExtraction::factory()->create([
+    'metadata' => [
+        'template_id' => 'your-template-id',
+        'identifier_field' => 'license_number',
+    ],
+]);
 ```
 
 ## License
