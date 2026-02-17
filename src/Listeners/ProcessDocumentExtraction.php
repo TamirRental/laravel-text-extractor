@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Tamir\DocumentExtraction\Listeners;
+namespace TamirRental\DocumentExtraction\Listeners;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Tamir\DocumentExtraction\Events\DocumentExtractionRequested;
-use Tamir\DocumentExtraction\Services\DocumentExtractionService;
+use TamirRental\DocumentExtraction\Events\DocumentExtractionRequested;
+use TamirRental\DocumentExtraction\Services\DocumentExtractionService;
 
 class ProcessDocumentExtraction implements ShouldQueue
 {

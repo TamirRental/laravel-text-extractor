@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Tamir\DocumentExtraction\Services;
+namespace TamirRental\DocumentExtraction\Services;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Tamir\DocumentExtraction\Contracts\DocumentExtractionProvider;
-use Tamir\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
-use Tamir\DocumentExtraction\Events\DocumentExtractionRequested;
-use Tamir\DocumentExtraction\Models\DocumentExtraction;
+use TamirRental\DocumentExtraction\Contracts\DocumentExtractionProvider;
+use TamirRental\DocumentExtraction\Enums\DocumentExtractionStatusEnum;
+use TamirRental\DocumentExtraction\Events\DocumentExtractionRequested;
+use TamirRental\DocumentExtraction\Models\DocumentExtraction;
 
 class DocumentExtractionService
 {

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tamir\DocumentExtraction\Contracts;
+namespace TamirRental\DocumentExtraction\Contracts;
 
 interface DocumentExtractionProvider
 {

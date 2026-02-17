@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Tamir\DocumentExtraction\Events;
+namespace TamirRental\DocumentExtraction\Events;
 
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use Tamir\DocumentExtraction\Models\DocumentExtraction;
+use TamirRental\DocumentExtraction\Models\DocumentExtraction;
 
 class DocumentExtractionRequested
 {
