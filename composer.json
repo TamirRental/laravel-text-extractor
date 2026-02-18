@@ -1,0 +1,60 @@
+{
+    "name": "tamirrental/laravel-text-extractor",
+    "description": "A Laravel package for extracting structured data from documents via OCR APIs. Ships with Koncile AI provider.",
+    "keywords": [
+        "laravel",
+        "text-extractor",
+        "ocr",
+        "koncile"
+    ],
+    "homepage": "https://github.com/TamirRental/laravel-text-extractor",
+    "version": "0.1.0",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "TamirRental",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": "^8.4",
+        "spatie/laravel-package-tools": "^1.16",
+        "illuminate/contracts": "^11.0||^12.0"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.14",
+        "orchestra/testbench": "^10.0",
+        "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-laravel": "^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "TamirRental\\DocumentExtraction\\": "src/",
+            "TamirRental\\DocumentExtraction\\Database\\Factories\\": "database/factories/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "TamirRental\\DocumentExtraction\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "vendor/bin/pest",
+        "format": "vendor/bin/pint"
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "TamirRental\\DocumentExtraction\\DocumentExtractionServiceProvider"
+            ]
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

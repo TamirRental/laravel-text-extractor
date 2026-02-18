@@ -1,0 +1,18 @@
+name: PR CI
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - '.gitattributes'
+      - '.gitignore'
+  workflow_dispatch:
+
+jobs:
+  run-tests:
+    name: 'Run Tests'
+    uses: ./.github/workflows/run-tests.yml
+
+  run-linter:
+    name: 'Run Linter'
+    uses: ./.github/workflows/run-pint.yml
