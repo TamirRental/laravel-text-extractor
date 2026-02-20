@@ -23,7 +23,6 @@ class DocumentExtractionServiceProvider extends PackageServiceProvider
             ->hasConfigFile('document-extraction')
             ->hasMigration('create_document_extractions_table')
             ->hasTranslations()
-            ->hasRoute('api')
             ->hasCommand(InstallCommand::class);
     }
 
