@@ -1,5 +1,10 @@
 # Laravel Text Extractor
 
+[![Tests](https://github.com/TamirRental/laravel-text-extractor/actions/workflows/run-tests.yml/badge.svg)](https://github.com/TamirRental/laravel-text-extractor/actions/workflows/run-tests.yml)
+[![Type Coverage](https://img.shields.io/badge/type--coverage-100%25-success)](https://github.com/TamirRental/laravel-text-extractor)
+[![PHP](https://img.shields.io/badge/php-8.4%2B-blue)](https://www.php.net)
+[![Laravel](https://img.shields.io/badge/laravel-11%20%7C%2012-red)](https://laravel.com)
+
 A Laravel package for extracting structured data from documents (images, PDFs) via OCR APIs. Ships with a [Koncile AI](https://koncile.ai) provider out of the box.
 
 ## Features
@@ -7,7 +12,6 @@ A Laravel package for extracting structured data from documents (images, PDFs) v
 - Extract structured data from documents using OCR providers
 - Fluent API — chainable `metadata()`, `force()`, and `submit()` methods
 - Async processing via Laravel queues
-- Webhook support for provider callbacks
 - Pluggable provider architecture — bring your own OCR provider
 - Facade for clean, expressive syntax
 - Built-in model scopes for querying extractions
@@ -157,15 +161,16 @@ DocumentExtraction::forType('car_license')->completed()->latest()->first();
 ```
 1. Your App                    2. Queue Worker               3. Provider (Koncile AI)
    │                              │                              │
-   ├─ Store file to S3            │                              │
+   ├─ Store file to Storage       │                              │
    ├─ extract()->submit() ───────►│                              │
-   │  (auto-dispatches event)     ├─ Download from S3            │
+   │  (auto-dispatches event)     ├─ Download from Storage       │
    │                              ├─ Upload to provider ────────►│
    │                              ├─ Save external_task_id       │
    │                              │                              ├─ OCR Processing...
    │                              │                              │
-   │                              │         Webhook callback ◄───┤
-   │                              │         complete() / fail()   │
+   │◄─────────────── Provider webhook callback ◄────────────────┤
+   ├─ Your controller handles it  │                              │
+   ├─ complete() / fail()         │                              │
    │                              │                              │
    ├─ Check status / display      │                              │
 ```
@@ -179,17 +184,56 @@ DocumentExtraction::forType('car_license')->completed()->latest()->first();
 | Provider succeeds | `completed` | `task-abc-123` | `{...provider data}` |
 | Provider fails | `failed` | `task-abc-123` | `{}` |
 
-## Webhook Setup
+## Handling Webhooks
 
-The package registers a webhook route automatically:
+The package does **not** register webhook routes — you own the entire webhook flow. Create your own controller to receive provider callbacks and use the service to update extractions:
 
+```php
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use TamirRental\DocumentExtraction\Services\DocumentExtractionService;
+
+class KoncileWebhookController extends Controller
+{
+    public function handle(Request $request, DocumentExtractionService $service): JsonResponse
+    {
+        // Validate the webhook (signature verification, etc.)
+
+        $taskId = $request->input('task_id');
+        $status = $request->input('status');
+
+        match ($status) {
+            'DONE' => $service->complete(
+                $taskId,
+                (object) $request->all(),
+                $request->input('General_fields.license_number.value', ''),
+            ),
+            'FAILED' => $service->fail($taskId, $request->input('error_message', 'Provider error')),
+            default => null,
+        };
+
+        return response()->json(['message' => 'Webhook processed']);
+    }
+}
 ```
-POST /webhooks/document-extraction/koncile
+
+Then register the route in your application:
+
+```php
+// routes/api.php
+Route::post('/webhooks/koncile', [KoncileWebhookController::class, 'handle']);
 ```
 
-Configure this URL in your Koncile AI dashboard as the webhook callback URL.
+### Available Service Methods
 
-In production, the webhook verifies the request signature using `KONCILE_AI_WEBHOOK_SECRET`. In non-production environments, signature verification is skipped if no secret is configured.
+| Method | Description |
+|--------|-------------|
+| `$service->complete(string $taskId, object $data, string $identifier = '')` | Mark extraction as completed with extracted data |
+| `$service->fail(string $taskId, string $message)` | Mark extraction as failed with error message |
 
 ## Custom Providers
 
@@ -248,7 +292,7 @@ public function register(): void
 
 The event is dispatched internally — you don't need to dispatch it yourself. The queued listener downloads the file from storage and uploads it to the provider.
 
-Listen for extraction completion in your app by creating your own listener that watches for model updates, or by extending the webhook controller.
+Listen for extraction completion in your app by creating your own listener that watches for model updates.
 
 ## Testing
 
