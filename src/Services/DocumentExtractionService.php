@@ -74,12 +74,14 @@ class DocumentExtractionService
     /**
      * Mark an extraction as completed with the extracted data.
      */
-    public function complete(string $taskId, object $extractedData, string $identifier = ''): ?DocumentExtraction
+    public function complete(DocumentExtraction|string $extractionOrTaskId, object $extractedData, string $identifier = ''): ?DocumentExtraction
     {
-        $extraction = $this->findByTaskId($taskId);
+        $extraction = $extractionOrTaskId instanceof DocumentExtraction
+            ? $extractionOrTaskId
+            : $this->findByTaskId($extractionOrTaskId);
 
         if (! $extraction) {
-            Log::warning('No extraction found for task ID', ['task_id' => $taskId]);
+            Log::warning('No extraction found for task ID', ['identifier' => $extractionOrTaskId]);
 
             return null;
         }
@@ -92,7 +94,6 @@ class DocumentExtractionService
 
         Log::info('Document extraction completed', [
             'extraction_id' => $extraction->id,
-            'external_task_id' => $taskId,
         ]);
 
         return $extraction;

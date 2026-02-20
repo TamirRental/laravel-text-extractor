@@ -159,6 +159,26 @@ it('completes extraction with extracted data', function () {
     expect($result->extracted_data->General_fields)->toBeObject();
 });
 
+it('completes extraction by model instance', function () {
+    $extraction = DocumentExtraction::factory()->pending()->create([
+        'external_task_id' => 'task-model-complete',
+    ]);
+
+    $extractedData = (object) [
+        'General_fields' => [
+            'license_number' => ['value' => '99-999-99'],
+        ],
+    ];
+
+    $result = $this->service->complete($extraction, $extractedData, '99-999-99');
+
+    expect($result)
+        ->not->toBeNull()
+        ->id->toBe($extraction->id)
+        ->status->toBe(DocumentExtractionStatusEnum::Completed)
+        ->identifier->toBe('99-999-99');
+});
+
 it('returns null when completing extraction with unknown task id', function () {
     $result = $this->service->complete('unknown-task', (object) []);
 
