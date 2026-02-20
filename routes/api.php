@@ -1,8 +1,0 @@
-<?php
-
-use Illuminate\Support\Facades\Route;
-use TamirRental\DocumentExtraction\Providers\KoncileAi\KoncileAiWebhookController;
-
-Route::middleware('api')
-    ->post('/webhooks/document-extraction/koncile', [KoncileAiWebhookController::class, 'handle'])
-    ->name('document-extraction.webhooks.koncile');

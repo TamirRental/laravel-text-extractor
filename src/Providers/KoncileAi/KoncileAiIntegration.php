@@ -15,7 +15,7 @@ class KoncileAiIntegration implements DocumentExtractionProvider
     /**
      * @var array{url: ?string, key: ?string, webhook_secret: ?string}
      */
-    private array $config;
+    protected array $config;
 
     public function __construct()
     {
@@ -43,11 +43,7 @@ class KoncileAiIntegration implements DocumentExtractionProvider
      */
     public function process(DocumentExtraction $extraction): void
     {
-        $tempPath = null;
-
         try {
-            $tempPath = sys_get_temp_dir().'/'.uniqid('extraction_').'-'.basename($extraction->filename);
-
             $contents = Storage::get($extraction->filename);
 
             if ($contents === null) {
@@ -56,9 +52,7 @@ class KoncileAiIntegration implements DocumentExtractionProvider
                 return;
             }
 
-            file_put_contents($tempPath, $contents);
-
-            $result = $this->upload($tempPath, $extraction->type, $extraction->metadata ?? []);
+            $result = $this->upload($contents, basename($extraction->filename), $extraction->type, $extraction->metadata ?? []);
 
             if ($result['status'] === DocumentExtractionStatusEnum::Pending->value && ! empty($result['external_id'])) {
                 $extraction->update([
@@ -79,20 +73,16 @@ class KoncileAiIntegration implements DocumentExtractionProvider
             ]);
 
             $this->fail($extraction, $e->getMessage());
-        } finally {
-            if ($tempPath && file_exists($tempPath)) {
-                unlink($tempPath);
-            }
         }
     }
 
     /**
-     * Upload a file to Koncile AI for extraction.
+     * Upload file contents to Koncile AI for extraction.
      *
      * @param  array<string, mixed>  $metadata
      * @return array{status: string, external_id?: string, message: string}
      */
-    private function upload(string $filePath, string $documentType, array $metadata = []): array
+    protected function upload(string $contents, string $filename, string $documentType, array $metadata = []): array
     {
         $templateId = $metadata['template_id'] ?? null;
 
@@ -106,22 +96,6 @@ class KoncileAiIntegration implements DocumentExtractionProvider
 
         $folderId = $metadata['folder_id'] ?? null;
 
-        if (! file_exists($filePath) || ! is_readable($filePath)) {
-            Log::error('File not accessible for extraction', [
-                'file' => $filePath,
-            ]);
-
-            return $this->failedResponse("File not accessible: {$filePath}");
-        }
-
-        $handle = fopen($filePath, 'r');
-
-        if ($handle === false) {
-            Log::error('Failed to open file for extraction', ['file' => $filePath]);
-
-            return $this->failedResponse("Failed to open file: {$filePath}");
-        }
-
         try {
             $queryParams = ['template_id' => $templateId];
 
@@ -132,7 +106,7 @@ class KoncileAiIntegration implements DocumentExtractionProvider
             $url = rtrim($this->config['url'], '/').'/v1/upload_file/?'.http_build_query($queryParams);
 
             $response = Http::withToken($this->config['key'])
-                ->attach('files', $handle, basename($filePath))
+                ->attach('files', $contents, $filename)
                 ->post($url);
 
             if ($response->successful()) {
@@ -154,21 +128,17 @@ class KoncileAiIntegration implements DocumentExtractionProvider
         } catch (\Throwable $e) {
             Log::error('Koncile AI upload exception', [
                 'error' => $e->getMessage(),
-                'file' => $filePath,
+                'filename' => $filename,
             ]);
 
             return $this->failedResponse("Network error: {$e->getMessage()}");
-        } finally {
-            if (is_resource($handle)) {
-                fclose($handle);
-            }
         }
     }
 
     /**
      * @return array{status: string, message: string}
      */
-    private function failedResponse(string $message): array
+    protected function failedResponse(string $message): array
     {
         return [
             'status' => DocumentExtractionStatusEnum::Failed->value,
@@ -179,7 +149,7 @@ class KoncileAiIntegration implements DocumentExtractionProvider
     /**
      * @return array{status: string, message: string}
      */
-    private function handleErrorResponse(int $statusCode, string $body): array
+    protected function handleErrorResponse(int $statusCode, string $body): array
     {
         $message = match (true) {
             in_array($statusCode, [401, 403], true) => 'Authentication failed with Koncile AI.',
@@ -199,7 +169,7 @@ class KoncileAiIntegration implements DocumentExtractionProvider
     /**
      * Mark an extraction as failed with the given message.
      */
-    private function fail(DocumentExtraction $extraction, string $message): void
+    protected function fail(DocumentExtraction $extraction, string $message): void
     {
         $extraction->update([
             'status' => DocumentExtractionStatusEnum::Failed,
