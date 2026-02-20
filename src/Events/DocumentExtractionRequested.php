@@ -1,0 +1,17 @@
+<?php
+
+namespace TamirRental\DocumentExtraction\Events;
+
+use Illuminate\Foundation\Events\Dispatchable;
+use Illuminate\Queue\SerializesModels;
+use TamirRental\DocumentExtraction\Models\DocumentExtraction;
+
+class DocumentExtractionRequested
+{
+    use Dispatchable;
+    use SerializesModels;
+
+    public function __construct(
+        public DocumentExtraction $documentExtraction,
+    ) {}
+}
