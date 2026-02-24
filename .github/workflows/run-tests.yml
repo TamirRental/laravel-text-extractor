@@ -35,4 +35,4 @@ jobs:
 
       - name: Execute tests via Pest
         if: hashFiles('tests/**') != ''
-        run: vendor/bin/pest --parallel
+        run: vendor/bin/pest --parallel --type-coverage --min=100
