@@ -21,6 +21,7 @@ class DocumentExtraction extends Model
         'status',
         'error_message',
         'external_task_id',
+        'file_path',
     ];
 
     /**

@@ -44,10 +44,11 @@ class KoncileAiIntegration implements DocumentExtractionProvider
     public function process(DocumentExtraction $extraction): void
     {
         try {
-            $contents = Storage::get($extraction->filename);
+            $storagePath = $extraction->file_path ?? $extraction->filename;
+            $contents = Storage::get($storagePath);
 
             if ($contents === null) {
-                $this->fail($extraction, "File not found in storage: {$extraction->filename}");
+                $this->fail($extraction, "File not found in storage: {$storagePath}");
 
                 return;
             }

@@ -33,7 +33,7 @@ it('creates a new pending extraction and dispatches event', function () {
         ->toBeInstanceOf(DocumentExtraction::class)
         ->status->toBe(DocumentExtractionStatusEnum::Pending)
         ->type->toBe('car_license')
-        ->filename->toBe('documents/test.pdf')
+        ->filename->toBe('test.pdf')
         ->identifier->toBe('')
         ->extracted_data->toEqual((object) []);
 
@@ -47,7 +47,7 @@ it('returns existing extraction without dispatching event', function () {
 
     $existing = DocumentExtraction::factory()->create([
         'type' => 'car_license',
-        'filename' => 'documents/test.pdf',
+        'filename' => 'test.pdf',
     ]);
 
     $result = $this->service->extract('car_license', 'documents/test.pdf')->submit();
@@ -62,7 +62,7 @@ it('creates new extraction with force and dispatches event', function () {
 
     $existing = DocumentExtraction::factory()->create([
         'type' => 'car_license',
-        'filename' => 'documents/test.pdf',
+        'filename' => 'test.pdf',
     ]);
 
     $result = $this->service->extract('car_license', 'documents/test.pdf')
@@ -87,12 +87,30 @@ it('stores metadata via fluent method', function () {
     expect($extraction->metadata)->toBe($metadata);
 });
 
+it('stores file_path via fluent method', function () {
+    Event::fake([DocumentExtractionRequested::class]);
+
+    $extraction = $this->service->extract('car_license', 'documents/test.pdf')
+        ->filePath('documents/car_licenses/2026/158-95-203.pdf')
+        ->submit();
+
+    expect($extraction->file_path)->toBe('documents/car_licenses/2026/158-95-203.pdf');
+});
+
+it('stores null file_path when not provided', function () {
+    Event::fake([DocumentExtractionRequested::class]);
+
+    $extraction = $this->service->extract('car_license', 'documents/test.pdf')->submit();
+
+    expect($extraction->file_path)->toBeNull();
+});
+
 it('supports conditional force with when', function () {
     Event::fake([DocumentExtractionRequested::class]);
 
     $existing = DocumentExtraction::factory()->create([
         'type' => 'car_license',
-        'filename' => 'documents/test.pdf',
+        'filename' => 'test.pdf',
     ]);
 
     $shouldForce = true;
@@ -109,7 +127,7 @@ it('does not force when condition is false', function () {
 
     $existing = DocumentExtraction::factory()->create([
         'type' => 'car_license',
-        'filename' => 'documents/test.pdf',
+        'filename' => 'test.pdf',
     ]);
 
     $shouldForce = false;
