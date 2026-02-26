@@ -58,6 +58,7 @@ class DocumentExtractionService
             'extracted_data' => (object) [],
             'metadata' => $metadata,
             'status' => DocumentExtractionStatusEnum::Pending,
+            'provider' => config('document-extraction.default'),
             'file_path' => $filePath,
         ]);
 

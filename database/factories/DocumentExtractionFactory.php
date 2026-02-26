@@ -27,6 +27,7 @@ class DocumentExtractionFactory extends Factory
             'status' => DocumentExtractionStatusEnum::Pending,
             'error_message' => null,
             'external_task_id' => null,
+            'provider' => 'koncile_ai',
         ];
     }
 

@@ -44,7 +44,8 @@ it('processes extraction successfully and stores external task id', function () 
     $this->integration->process($extraction);
 
     $extraction->refresh();
-    expect($extraction->external_task_id)->toBe('task-abc-123');
+    expect($extraction->external_task_id)->toBe('task-abc-123')
+        ->and($extraction->provider)->toBe('koncile_ai');
 
     Http::assertSent(function ($request) {
         return str_contains($request->url(), 'v1/upload_file')

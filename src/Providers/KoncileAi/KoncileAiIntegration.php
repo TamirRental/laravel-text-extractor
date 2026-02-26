@@ -58,6 +58,7 @@ class KoncileAiIntegration implements DocumentExtractionProvider
             if ($result['status'] === DocumentExtractionStatusEnum::Pending->value && ! empty($result['external_id'])) {
                 $extraction->update([
                     'external_task_id' => $result['external_id'],
+                    'provider' => 'koncile_ai',
                 ]);
 
                 Log::info('Document extraction submitted', [
