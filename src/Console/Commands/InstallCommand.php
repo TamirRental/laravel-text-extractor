@@ -10,18 +10,26 @@ class InstallCommand extends Command
 
     protected $description = 'Install the Document Extraction package';
 
-    public function handle(): void
+    public function handle(): int
     {
         $this->info('Installing Document Extraction package...');
 
-        $this->call('vendor:publish', [
+        $configResult = $this->call('vendor:publish', [
             '--tag' => 'document-extraction-config',
         ]);
 
-        $this->call('vendor:publish', [
+        $migrationsResult = $this->call('vendor:publish', [
             '--tag' => 'document-extraction-migrations',
         ]);
 
+        if ($configResult !== Command::SUCCESS || $migrationsResult !== Command::SUCCESS) {
+            $this->error('Document Extraction package installation failed.');
+
+            return Command::FAILURE;
+        }
+
         $this->info('Document Extraction package installed successfully.');
+
+        return Command::SUCCESS;
     }
 }
