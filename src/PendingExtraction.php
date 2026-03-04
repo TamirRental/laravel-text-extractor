@@ -15,6 +15,8 @@ class PendingExtraction
 
     private bool $force = false;
 
+    private ?string $filePath = null;
+
     public function __construct(
         private DocumentExtractionService $service,
         private string $type,
@@ -30,6 +32,18 @@ class PendingExtraction
     public function metadata(array $metadata): static
     {
         $this->metadata = $metadata;
+
+        return $this;
+    }
+
+    /**
+     * Set the file path for this extraction.
+     *
+     * @return $this
+     */
+    public function filePath(string $path): static
+    {
+        $this->filePath = $path;
 
         return $this;
     }
@@ -56,6 +70,7 @@ class PendingExtraction
             $this->filename,
             $this->metadata,
             $this->force,
+            $this->filePath,
         );
     }
 }

@@ -35,12 +35,14 @@ class DocumentExtractionService
      *
      * @internal
      */
-    public function execute(string $type, string $filename, array $metadata = [], bool $force = false): DocumentExtraction
+    public function execute(string $type, string $filename, array $metadata = [], bool $force = false, ?string $filePath = null): DocumentExtraction
     {
+        $baseFilename = basename($filename);
+
         if (! $force) {
             $existing = DocumentExtraction::query()
                 ->forType($type)
-                ->forFile($filename)
+                ->forFile($baseFilename)
                 ->latest()
                 ->first();
 
@@ -51,11 +53,13 @@ class DocumentExtractionService
 
         $extraction = DocumentExtraction::create([
             'type' => $type,
-            'filename' => $filename,
+            'filename' => $baseFilename,
             'identifier' => '',
             'extracted_data' => (object) [],
             'metadata' => $metadata,
             'status' => DocumentExtractionStatusEnum::Pending,
+            'provider' => config('document-extraction.default'),
+            'file_path' => $filePath,
         ]);
 
         DocumentExtractionRequested::dispatch($extraction);
@@ -74,12 +78,14 @@ class DocumentExtractionService
     /**
      * Mark an extraction as completed with the extracted data.
      */
-    public function complete(string $taskId, object $extractedData, string $identifier = ''): ?DocumentExtraction
+    public function complete(DocumentExtraction|string $extractionOrTaskId, object $extractedData, string $identifier = ''): ?DocumentExtraction
     {
-        $extraction = $this->findByTaskId($taskId);
+        $extraction = $extractionOrTaskId instanceof DocumentExtraction
+            ? $extractionOrTaskId
+            : $this->findByTaskId($extractionOrTaskId);
 
         if (! $extraction) {
-            Log::warning('No extraction found for task ID', ['task_id' => $taskId]);
+            Log::warning('No extraction found for task ID', ['identifier' => $extractionOrTaskId]);
 
             return null;
         }
@@ -92,7 +98,6 @@ class DocumentExtractionService
 
         Log::info('Document extraction completed', [
             'extraction_id' => $extraction->id,
-            'external_task_id' => $taskId,
         ]);
 
         return $extraction;

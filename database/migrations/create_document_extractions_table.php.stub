@@ -18,11 +18,13 @@ return new class extends Migration
             $table->string('status');
             $table->text('error_message')->nullable();
             $table->string('external_task_id')->nullable();
+            $table->string('provider');
+            $table->string('file_path')->nullable();
             $table->timestamps();
 
             $table->index(['type', 'filename']);
             $table->index(['type', 'identifier']);
-            $table->index('external_task_id');
+            $table->unique(['external_task_id', 'provider']);
         });
     }
 
